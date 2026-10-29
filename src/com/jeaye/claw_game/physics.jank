@@ -6,45 +6,109 @@
 ; https://box2d.org/documentation/index.html#autotoc_md6
 (def world-width 4.0)
 (def world-height 6.0)
+(def world-gravity -0.5)
 
 (def bucket-width (* world-width 0.3))
 (def bucket-height (* world-height 0.3))
 
-(defn create-world! []
-  (let [world-def (cpp/b2DefaultWorldDef)
-        _ (cpp/= (.-gravity world-def) (cpp/b2Vec2 0.0 -0.1))
-        world-id (cpp/b2CreateWorld (cpp/& world-def))
+(def wall-width 0.2)
 
-        playspace-body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position playspace-body-def) (cpp/b2Vec2 0.0 0.0))
-        playspace-id (cpp/b2CreateBody world-id (cpp/& playspace-body-def))
+(def sub-step-count 4)
 
-        playspace-box (cpp/b2MakeBox (/ world-width 2.0) (/ world-height 2.0))
-        playspace-shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/b2CreatePolygonShape playspace-id (cpp/& playspace-shape-def) (cpp/& playspace-box))
+(defn create-playspace! [^(:* b2WorldId) world-id]
+  (let [;playspace-body-def (cpp/b2DefaultBodyDef)
+        ;_ (cpp/= (.-position playspace-body-def) (cpp/b2Vec2 0.0 0.0))
+        ;playspace-id (cpp/b2CreateBody world-id (cpp/& playspace-body-def))
+
+        ;playspace-box (cpp/b2MakeBox (/ world-width 2.0) (/ world-height 2.0))
+        ;playspace-shape-def (cpp/b2DefaultShapeDef)
+        ;_ (cpp/b2CreatePolygonShape playspace-id (cpp/& playspace-shape-def) (cpp/& playspace-box))
 
         bucket-body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-position bucket-body-def) (cpp/b2Vec2 (+ (/ world-width -2)
                                                              (/ bucket-width 2))
                                                           (+ (/ world-height -2)
                                                              (/ bucket-height 2))))
-        bucket-id (cpp/b2CreateBody world-id (cpp/& bucket-body-def))
+        bucket-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bucket-body-def))
 
-        bucket-box (cpp/b2MakeBox (float (/ bucket-width 2.0)) (float (/ bucket-height 2.0)))
+        bucket-box (cpp/b2MakeBox (/ bucket-width 2.0) (/ bucket-height 2.0))
         bucket-shape-def (cpp/b2DefaultShapeDef)
         _ (cpp/b2CreatePolygonShape bucket-id (cpp/& bucket-shape-def) (cpp/& bucket-box))
 
-        body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
-        _ (cpp/= (.-position body-def) (cpp/b2Vec2 0.0 0.0))
-        body-id (cpp/b2CreateBody world-id (cpp/& body-def))
+        left-wall-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position left-wall-body-def) (cpp/b2Vec2 (- (/ world-width -2)
+                                                                (/ wall-width 2))
+                                                             0.0))
+        left-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& left-wall-body-def))
 
-        dynamic-box (cpp/b2MakeBox 0.1 0.1)
+        left-wall-box (cpp/b2MakeBox (/ wall-width 2.0) (/ world-height 2.0))
+        left-wall-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape left-wall-id (cpp/& left-wall-shape-def) (cpp/& left-wall-box))
+
+        right-wall-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position right-wall-body-def) (cpp/b2Vec2 (+ (/ world-width 2)
+                                                                 (/ wall-width 2))
+                                                              0.0))
+        right-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& right-wall-body-def))
+
+        right-wall-box (cpp/b2MakeBox (/ wall-width 2.0) (/ world-height 2.0))
+        right-wall-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape right-wall-id (cpp/& right-wall-shape-def) (cpp/& right-wall-box))
+
+        top-wall-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position top-wall-body-def) (cpp/b2Vec2 0.0
+                                                               (+ (/ world-height 2)
+                                                                  (/ wall-width 2))))
+        top-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& top-wall-body-def))
+
+        top-wall-box (cpp/b2MakeBox (/ world-width 2.0) (/ wall-width 2.0))
+        top-wall-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape top-wall-id (cpp/& top-wall-shape-def) (cpp/& top-wall-box))
+
+        bottom-wall-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position bottom-wall-body-def) (cpp/b2Vec2 0.0
+                                                               (- (/ world-height -2)
+                                                                  (/ wall-width 2))))
+        bottom-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bottom-wall-body-def))
+
+        bottom-wall-box (cpp/b2MakeBox (/ world-width 2.0) (/ wall-width 2.0))
+        bottom-wall-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape bottom-wall-id (cpp/& bottom-wall-shape-def) (cpp/& bottom-wall-box))]
+    ))
+
+(defn create-pieces! [^(:* b2WorldId) world-id]
+  (let [box (cpp/b2MakeBox 0.1 0.1)
+        triangle-points (#cpp (:array b2Vec2 3))
+        _ (do
+            (cpp/= (cpp/aget triangle-points 0) (cpp/b2Vec2 0.0 0.115470))
+            (cpp/= (cpp/aget triangle-points 1) (cpp/b2Vec2 -0.1 -0.057735))
+            (cpp/= (cpp/aget triangle-points 2) (cpp/b2Vec2 0.1 -0.057735)))
+        triangle-hull (cpp/b2ComputeHull triangle-points 3)
+        triangle (cpp/b2MakePolygon (cpp/& triangle-hull) 0.0)
         shape-def (cpp/b2DefaultShapeDef)
         _ (cpp/= (.-density shape-def) 1.0)
-        _ (cpp/= (.-friction (.-material shape-def)) 0.3)
-        _ (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& dynamic-box))]
-    (cpp/box (cpp/new b2WorldId world-id))))
+        _ (cpp/= (.-friction (.-material shape-def)) 0.3)]
+    (dotimes [_ 100]
+      (let [body-def (cpp/b2DefaultBodyDef)
+            _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+            _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
+                                                       (rand (/ world-height -2))))
+            body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+            body-type (rand-int 3)]
+        (cpp/b2CreatePolygonShape body-id
+                                  (cpp/& shape-def)
+                                  (if (= 0 body-type)
+                                    (cpp/& triangle)
+                                    (cpp/& box)))))))
+
+(defn create-world! []
+  (let [world-def (cpp/b2DefaultWorldDef)
+        _ (cpp/= (.-gravity world-def) (cpp/b2Vec2 0.0 world-gravity))
+        world-id (cpp/b2CreateWorld (cpp/& world-def))
+        world-id-box (cpp/box (cpp/new b2WorldId world-id))]
+    (create-playspace! world-id-box)
+    (create-pieces! world-id-box)
+    world-id-box))
 
 (defn destroy-world! [id]
   (when id

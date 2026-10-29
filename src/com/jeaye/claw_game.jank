@@ -8,16 +8,27 @@
 
 (defn start-game! []
   (physics/destroy-world! (get-in @global-state [:physics :world-id]))
-  {:physics {:world-id (physics/create-world!)}})
+  {:mode :playing
+   :physics {:world-id (physics/create-world!)}
+   ; Box2D can't be changed from another thread, so if we want to re-create the world, we
+   ; need to do it on the main thread. Since each REPL command runs off the main thread,
+   ; we need a way to enqueue work for the main thread. We do that with this queue.
+   :queue []})
 
 (comment
-  (reset! global-state (start-game!))
+  ; This will restart the game in a thread-safe fashion.
+  (swap! global-state (fn [state]
+                        (update state :queue conj (fn [state]
+                                                    (start-game!)))))
   (deref global-state))
 
 (defn update-game [state]
   (try
     (if (= :playing (:mode state))
-      state
+      (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))
+            delta (cpp/GetFrameTime)]
+        (cpp/b2World_Step world-id delta physics/sub-step-count)
+        state)
       state)
     (catch jank.runtime.object_ref e
       (prn e)
@@ -37,9 +48,9 @@
     (cpp/BeginDrawing)
     (cpp/ClearBackground cpp/BLACK)
 
-    (let [debug (cpp/b2CreateDebugDraw (float (/ (cpp/GetScreenWidth) physics/world-width)))]
-      (cpp/b2World_Draw (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))
-                        (cpp/& debug)))
+    (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.5)))
+          world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
+      (cpp/b2World_Draw world-id (cpp/& debug)))
 
     (cpp/EndDrawing)
     (catch jank.runtime.object_ref e
@@ -61,7 +72,12 @@
            (fn [state]
              (let [state (update-game state)]
                (render-game! state)
-               state))))
+               (if-not (empty? (:queue state))
+                 (reduce (fn [state f]
+                           (f state))
+                         (assoc state :queue [])
+                         (:queue state))
+                 state)))))
 
   (cpp/CloseWindow))
 
