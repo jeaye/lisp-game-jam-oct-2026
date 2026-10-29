@@ -1,0 +1,51 @@
+(ns com.jeaye.claw-game.physics
+  (:include "box2d/box2d.h"))
+
+; The game world is 4 meters wide and 6 meters tall, to accomodate for box2d's
+; physics which work well with moving objects from 0.1 meters to 10 meters.
+; https://box2d.org/documentation/index.html#autotoc_md6
+(def world-width 4.0)
+(def world-height 6.0)
+
+(def bucket-width (* world-width 0.3))
+(def bucket-height (* world-height 0.3))
+
+(defn create-world! []
+  (let [world-def (cpp/b2DefaultWorldDef)
+        _ (cpp/= (.-gravity world-def) (cpp/b2Vec2 0.0 -0.1))
+        world-id (cpp/b2CreateWorld (cpp/& world-def))
+
+        playspace-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position playspace-body-def) (cpp/b2Vec2 0.0 0.0))
+        playspace-id (cpp/b2CreateBody world-id (cpp/& playspace-body-def))
+
+        playspace-box (cpp/b2MakeBox (/ world-width 2.0) (/ world-height 2.0))
+        playspace-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape playspace-id (cpp/& playspace-shape-def) (cpp/& playspace-box))
+
+        bucket-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position bucket-body-def) (cpp/b2Vec2 (+ (/ world-width -2)
+                                                             (/ bucket-width 2))
+                                                          (+ (/ world-height -2)
+                                                             (/ bucket-height 2))))
+        bucket-id (cpp/b2CreateBody world-id (cpp/& bucket-body-def))
+
+        bucket-box (cpp/b2MakeBox (float (/ bucket-width 2.0)) (float (/ bucket-height 2.0)))
+        bucket-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape bucket-id (cpp/& bucket-shape-def) (cpp/& bucket-box))
+
+        body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+        _ (cpp/= (.-position body-def) (cpp/b2Vec2 0.0 0.0))
+        body-id (cpp/b2CreateBody world-id (cpp/& body-def))
+
+        dynamic-box (cpp/b2MakeBox 0.1 0.1)
+        shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/= (.-density shape-def) 1.0)
+        _ (cpp/= (.-friction (.-material shape-def)) 0.3)
+        _ (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& dynamic-box))]
+    (cpp/box (cpp/new b2WorldId world-id))))
+
+(defn destroy-world! [id]
+  (when id
+    (cpp/b2DestroyWorld (cpp/* (cpp/unbox (:* b2WorldId) id)))))
