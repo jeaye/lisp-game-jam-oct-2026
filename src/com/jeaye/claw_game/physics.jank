@@ -146,16 +146,16 @@
 (defn create-claw-tip-joint! [^(:* b2WorldId) world-id
                               ^(:* b2BodyId) hub-id
                               ^(:* b2BodyId) tip-id
-                              anchor-x
                               lower
-                              upper]
+                              upper
+                              direction]
   (let [joint-def (cpp/b2DefaultRevoluteJointDef)
         _ (do
             (cpp/= (.-bodyIdA (.-base joint-def)) (cpp/* hub-id))
             (cpp/= (.-bodyIdB (.-base joint-def)) (cpp/* tip-id))
-            (cpp/= (.-p (.-localFrameA (.-base joint-def))) (cpp/b2Vec2 anchor-x 0.0))
+            (cpp/= (.-p (.-localFrameA (.-base joint-def))) (cpp/b2Vec2 0.0 0.0))
             (cpp/= (.-q (.-localFrameA (.-base joint-def))) (cpp/b2MakeRot 0.0))
-            (cpp/= (.-p (.-localFrameB (.-base joint-def))) (cpp/b2Vec2 anchor-x 0.0))
+            (cpp/= (.-p (.-localFrameB (.-base joint-def))) (cpp/b2Vec2 0.0 0.0))
             (cpp/= (.-q (.-localFrameB (.-base joint-def))) (cpp/b2MakeRot 0.0))
             (cpp/= (.-collideConnected (.-base joint-def)) false)
 
@@ -163,9 +163,9 @@
             (cpp/= (.-lowerAngle joint-def) lower)
             (cpp/= (.-upperAngle joint-def) upper)
 
-            (cpp/= (.-enableMotor joint-def) false)
+            (cpp/= (.-enableMotor joint-def) true)
             (cpp/= (.-maxMotorTorque joint-def) 3.0)
-            (cpp/= (.-motorSpeed joint-def) 1.0)
+            (cpp/= (.-motorSpeed joint-def) (* 1.0 direction))
 
             (cpp/= (.-enableSpring joint-def) false))
         joint-id (cpp/b2CreateRevoluteJoint (cpp/* world-id) (cpp/& joint-def))]
@@ -176,7 +176,7 @@
 
         hub-box (cpp/b2MakeBox 0.1 0.1)
 
-        left-hub-pos {:x -0.5 :y (- (/ world-height 2) 0.5)}
+        left-hub-pos {:x -0.3 :y (- (/ world-height 2) 0.5)}
         left-hub-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-type left-hub-def) cpp/b2_kinematicBody)
         _ (cpp/= (.-position left-hub-def) (cpp/cast b2Vec2 left-hub-pos))
@@ -185,7 +185,7 @@
         left-hub-shape-def (cpp/b2DefaultShapeDef)
         _ (cpp/b2CreatePolygonShape left-hub-id (cpp/& left-hub-shape-def) (cpp/& hub-box))
 
-        right-hub-pos {:x 0.5 :y (- (/ world-height 2) 0.5)}
+        right-hub-pos {:x 0.3 :y (- (/ world-height 2) 0.5)}
         right-hub-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-type right-hub-def) cpp/b2_kinematicBody)
         _ (cpp/= (.-position right-hub-def) (cpp/cast b2Vec2 right-hub-pos))
@@ -199,8 +199,16 @@
         right-tip-pos (update right-hub-pos :x + 0.3)
         right-tip (create-claw-tip! world-id right-tip-pos :right)
 
-        left-joint (create-claw-tip-joint! world-id left-hub-id-boxed left-tip 0.0 -0.5 0.6)
-        right-joint (create-claw-tip-joint! world-id right-hub-id-boxed right-tip 0.0 -0.6 0.5)
+        left-joint (create-claw-tip-joint! world-id
+                                           left-hub-id-boxed left-tip
+                                           (degrees-to-radians -90.0)
+                                           (degrees-to-radians 90.0)
+                                           1.0)
+        right-joint (create-claw-tip-joint! world-id
+                                            right-hub-id-boxed right-tip
+                                            (degrees-to-radians -90.0)
+                                            (degrees-to-radians 90.0)
+                                            -1.0)
         ]
     ))
 
