@@ -1,5 +1,6 @@
 (ns com.jeaye.claw-game.physics
-  (:include "box2d/box2d.h"))
+  (:include "box2d/box2d.h")
+  (:require [com.jeaye.claw-game.box2d-trait]))
 
 ; The game world is 4 meters wide and 6 meters tall, to accomodate for box2d's
 ; physics which work well with moving objects from 0.1 meters to 10 meters.
@@ -85,7 +86,9 @@
             (cpp/= (cpp/aget triangle-points 2) (cpp/b2Vec2 0.1 -0.057735)))
         triangle-hull (cpp/b2ComputeHull triangle-points 3)
         triangle (cpp/b2MakePolygon (cpp/& triangle-hull) 0.0)
+        ; TODO: Circle, star, etc?
         shape-def (cpp/b2DefaultShapeDef)
+        ; TODO: Mass.
         _ (cpp/= (.-density shape-def) 1.0)
         _ (cpp/= (.-friction (.-material shape-def)) 0.3)]
     (dotimes [_ 100]
@@ -101,6 +104,56 @@
                                     (cpp/& triangle)
                                     (cpp/& box)))))))
 
+(defn degrees-to-radians [deg]
+  (* deg (/ 3.14159 180.0)))
+
+(def claw-tip-points (let [third-length 0.3
+                           half-third-length (/ third-length 2)
+                           deg-30 (- (- third-length) (* third-length (cpp/cos (degrees-to-radians 30))))
+                           deg-60 (degrees-to-radians 60)
+                           left [{:x 0.0 :y 0.0}
+                                 {:x 0.0 :y (- third-length)}
+                                 {:x half-third-length :y deg-30}
+                                 {:x (+ half-third-length (* third-length (cpp/sin deg-60)))
+                                  :y (- deg-30 (* third-length (cpp/cos deg-60)))}]]
+                       {:left left
+                        :right (mapv (fn [{:keys [x y]}]
+                                       {:x (- x)
+                                        :y y})
+                                     left)}))
+
+(defn create-claw-tip! [^(:* b2WorldId) world-id pos side]
+  (let [body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/= (.-friction (.-material shape-def)) 0.8)
+        tip-radius 0.05]
+    (dotimes [i 3]
+      (let [capsule (cpp/b2Capsule (nth (get claw-tip-points side) i)
+                                   (nth (get claw-tip-points side) (inc i))
+                                   tip-radius)]
+        (cpp/b2CreateCapsuleShape body-id (cpp/& shape-def) (cpp/& capsule))))
+    ))
+
+(defn create-claw! [world-id]
+  (let [world-id* (cpp/unbox (:* b2WorldId) world-id)
+
+        hub-pos {:x 0.0 :y (- (/ world-height 2) 0.5)}
+        hub-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-type hub-def) cpp/b2_kinematicBody)
+        _ (cpp/= (.-position hub-def) (cpp/cast b2Vec2 hub-pos))
+        hub-id (cpp/b2CreateBody (cpp/* world-id*) (cpp/& hub-def))
+        hub-shape-def (cpp/b2DefaultShapeDef)
+        hub-box (cpp/b2MakeBox 0.1 0.1)
+        _ (cpp/b2CreatePolygonShape hub-id (cpp/& hub-shape-def) (cpp/& hub-box))
+
+        left-tip-pos (update hub-pos :x - 0.15)
+        left-tip (create-claw-tip! world-id left-tip-pos :left)
+        right-tip-pos (update hub-pos :x + 0.15)
+        right-tip (create-claw-tip! world-id right-tip-pos :right)]
+    ))
+
 (defn create-world! []
   (let [world-def (cpp/b2DefaultWorldDef)
         _ (cpp/= (.-gravity world-def) (cpp/b2Vec2 0.0 world-gravity))
@@ -108,6 +161,7 @@
         world-id-box (cpp/box (cpp/new b2WorldId world-id))]
     (create-playspace! world-id-box)
     (create-pieces! world-id-box)
+    (create-claw! world-id-box)
     world-id-box))
 
 (defn destroy-world! [id]
