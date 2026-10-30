@@ -5,6 +5,14 @@
   (:require [com.jeaye.claw-game.physics :as physics]))
 
 (def global-state (atom nil))
+(def last-error (atom nil))
+
+; Rather than spitting out the same error thousands of times, we dedupe
+; so that repeated errors are logged once.
+(defn log-error! [e]
+  (when-not (= e @last-error)
+    (println e)
+    (reset! last-error e)))
 
 (defn start-game! []
   (physics/destroy-world! (get-in @global-state [:physics :world-id]))
@@ -13,6 +21,9 @@
    ; Box2D can't be changed from another thread, so if we want to re-create the world, we
    ; need to do it on the main thread. Since each REPL command runs off the main thread,
    ; we need a way to enqueue work for the main thread. We do that with this queue.
+   ;
+   ; We also use this to enqueue the destruction of box2d pieces, since they can't be
+   ; destroyed during the update loop.
    :queue []})
 
 (comment
@@ -25,23 +36,18 @@
 (defn update-game [state]
   (try
     (if (= :playing (:mode state))
-      (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))
-            delta (cpp/GetFrameTime)]
-        (physics/update-claw! state)
-        (cpp/b2World_Step world-id delta physics/sub-step-count)
-        state)
-      state)
+      (physics/update! state))
     (catch jank.runtime.object_ref e
-      (prn e)
+      (log-error! (str "update exception: " (prn e)))
       state)
     (catch jank.error_ref e
-      (prn (.-message (cpp/* e)))
+      (log-error! (str "update exception: " (.-message (cpp/* e))))
       state)
     (catch std.exception e
-      (prn (.what e))
+      (log-error! (str "update exception:" (.what e)))
       state)
     (catch :default _
-      (println "update exception")
+      (log-error! "update exception")
       state)))
 
 (defn render-game! [state]
@@ -55,13 +61,13 @@
 
     (cpp/EndDrawing)
     (catch jank.runtime.object_ref e
-      (prn e))
+      (log-error! (str "render exception: " (prn e))))
     (catch jank.error_ref e
-      (prn (.-message (cpp/* e))))
+      (log-error! (str "render exception: " (.-message (cpp/* e)))))
     (catch std.exception e
-      (prn (.what e)))
+      (log-error! (str "render exception:" (.what e))))
     (catch :default _
-      (println "render exception"))))
+      (log-error! "render exception"))))
 
 (defn -main [& args]
   (cpp/InitWindow 720 1080 "janky claw")
@@ -76,7 +82,20 @@
                (if (empty? (:queue state))
                  state
                  (reduce (fn [state f]
-                           (f state))
+                           (try
+                             (f state)
+                             (catch jank.runtime.object_ref e
+                               (log-error! (str "queue exception: " (prn e)))
+                               state)
+                             (catch jank.error_ref e
+                               (log-error! (str "queue exception: " (.-message (cpp/* e))))
+                               state)
+                             (catch std.exception e
+                               (log-error! (str "queue exception:" (.what e)))
+                               state)
+                             (catch :default _
+                               (log-error! "queue exception")
+                               state)))
                          (assoc state :queue [])
                          (:queue state)))))))
 

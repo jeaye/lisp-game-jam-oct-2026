@@ -28,7 +28,8 @@
 (def claw-track-gain 10.0)
 (def claw-max-speed 3.0)
 
-; This controls the 
+; This controls the number of sub-steps that box2d does per tick.
+; More sub-steps will result in more precision.
 (def sub-step-count 4)
 
 ; -----------------------------------------------------------------------------
@@ -306,9 +307,32 @@
     ;(println :pos {:x x :y y})
     (drive-claw-tip! left-joint-id :left left-claw)
     (drive-claw-tip! right-joint-id :right right-claw)
-    (drive-claw-hubs! left-hub-id right-hub-id {:x (if (< x gamepad-deadzone)
-                                                     0.0
-                                                     x)
-                                                :y (if (< y gamepad-deadzone)
-                                                     0.0
-                                                     x)})))
+    ; TODO: Deal with drift. Deadzone?
+    (drive-claw-hubs! left-hub-id right-hub-id {:x x
+                                                :y y})))
+
+(defn update-pieces! [state]
+  (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))
+        events (cpp/b2World_GetSensorEvents world-id)
+        pieces-to-remove (transient [])]
+    (dotimes [i (.-beginCount events)]
+      (let [shape-id (cpp/b2Shape_GetBody (.-visitorShapeId (cpp/aget (.-beginEvents events) i)))]
+        (when (cpp/b2Body_IsValid shape-id)
+          (conj! pieces-to-remove (cpp/box (cpp/new b2BodyId shape-id))))))
+    (if (empty? pieces-to-remove)
+      state
+      (update state :queue conj (fn [state]
+                                  (doseq [piece (persistent! pieces-to-remove)]
+                                    (let [id (cpp/* (cpp/unbox (:* b2BodyId) piece))]
+                                      (when (cpp/b2Body_IsValid id)
+                                        (cpp/b2DestroyBody id))))
+                                  state)))))
+
+(defn update! [state]
+  (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))
+        delta (cpp/GetFrameTime)
+        state (do
+                (update-claw! state)
+                (update-pieces! state))]
+    (cpp/b2World_Step world-id delta sub-step-count)
+    state))
