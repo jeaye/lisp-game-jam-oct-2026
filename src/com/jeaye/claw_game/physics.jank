@@ -203,14 +203,14 @@
                                            left-hub-id-boxed left-tip
                                            (degrees-to-radians -90.0)
                                            (degrees-to-radians 90.0)
-                                           1.0)
+                                           -1.0)
         right-joint (create-claw-tip-joint! world-id
                                             right-hub-id-boxed right-tip
                                             (degrees-to-radians -90.0)
                                             (degrees-to-radians 90.0)
-                                            -1.0)
-        ]
-    ))
+                                            1.0)]
+    {:left-joint-id left-joint
+     :right-joint-id right-joint}))
 
 (defn create-world! []
   (let [world-def (cpp/b2DefaultWorldDef)
@@ -219,8 +219,8 @@
         world-id-box (cpp/box (cpp/new b2WorldId world-id))]
     (create-playspace! world-id-box)
     (create-pieces! world-id-box)
-    (create-claw! world-id-box)
-    world-id-box))
+    (assoc (create-claw! world-id-box)
+           :world-id world-id-box)))
 
 (defn destroy-world! [id]
   (when id

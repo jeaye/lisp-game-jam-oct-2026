@@ -9,7 +9,7 @@
 (defn start-game! []
   (physics/destroy-world! (get-in @global-state [:physics :world-id]))
   {:mode :playing
-   :physics {:world-id (physics/create-world!)}
+   :physics (physics/create-world!)
    ; Box2D can't be changed from another thread, so if we want to re-create the world, we
    ; need to do it on the main thread. Since each REPL command runs off the main thread,
    ; we need a way to enqueue work for the main thread. We do that with this queue.
@@ -72,12 +72,12 @@
            (fn [state]
              (let [state (update-game state)]
                (render-game! state)
-               (if-not (empty? (:queue state))
+               (if (empty? (:queue state))
+                 state
                  (reduce (fn [state f]
                            (f state))
                          (assoc state :queue [])
-                         (:queue state))
-                 state)))))
+                         (:queue state)))))))
 
   (cpp/CloseWindow))
 
