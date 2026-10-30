@@ -220,8 +220,10 @@
                                             claw-max-close-angle
                                             claw-max-open-angle
                                             1.0)]
-    {:left-tip-id left-tip
+    {:left-hub-id left-hub-id-boxed
+     :left-tip-id left-tip
      :left-joint-id left-joint
+     :right-hub-id right-hub-id-boxed
      :right-tip-id right-tip
      :right-joint-id right-joint}))
 
@@ -245,8 +247,8 @@
 (def gamepad-deadzone 0.05)
 
 ; raylib gives us a gamepad axis of -1.0 (fully released) to 1.0 (fully pressed).
-; We want to normalize that to a range of 0.0 and 1.0, for our claw.
-(defn normalize-gamepad-axis [axis]
+; We want to normalize that to a range of 0.0 and 1.0.
+(defn normalize-claw-tip-axis [axis]
   (let [t (* (+ axis 1.0) 0.5)]
     (cond
       (< t gamepad-deadzone)
@@ -276,10 +278,26 @@
                      claw-max-speed)]
     (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
 
+(defn drive-claw-hubs! [^(:* b2BodyId) left-hub-id
+                        ^(:* b2BodyId) right-hub-id
+                        axes]
+  (cpp/b2Body_SetLinearVelocity (cpp/* left-hub-id) axes)
+  (cpp/b2Body_SetLinearVelocity (cpp/* right-hub-id) axes))
+
 (defn update-claw! [state]
-  (let [; TODO: Select gamepad?
-        left-axis (normalize-gamepad-axis (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_TRIGGER))
-        right-axis (normalize-gamepad-axis (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_RIGHT_TRIGGER))
-        {:keys [left-joint-id right-joint-id]} (:physics state)]
-    (drive-claw-tip! left-joint-id :left left-axis)
-    (drive-claw-tip! right-joint-id :right right-axis)))
+  (let [{:keys [left-joint-id right-joint-id
+                left-hub-id right-hub-id]} (:physics state)
+        ; TODO: Select gamepad?
+        left-claw (normalize-claw-tip-axis (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_TRIGGER))
+        right-claw (normalize-claw-tip-axis (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_RIGHT_TRIGGER))
+        x (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_X)
+        y (- (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_Y))]
+    ;(println :pos {:x x :y y})
+    (drive-claw-tip! left-joint-id :left left-claw)
+    (drive-claw-tip! right-joint-id :right right-claw)
+    (drive-claw-hubs! left-hub-id right-hub-id {:x (if (< x gamepad-deadzone)
+                                                     0.0
+                                                     x)
+                                                :y (if (< y gamepad-deadzone)
+                                                     0.0
+                                                     x)})))
