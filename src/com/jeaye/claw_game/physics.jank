@@ -274,7 +274,6 @@
         speed (clamp (* claw-track-gain (- target current))
                      (- claw-max-speed)
                      claw-max-speed)]
-    (println :side (if (= 1.0 side) :left :right) :axis axis :target (radians-to-degrees target) :current (radians-to-degrees current) :speed speed)
     (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
 
 (defn update-claw! [state]
