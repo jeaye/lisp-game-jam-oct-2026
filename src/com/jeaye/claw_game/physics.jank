@@ -1,5 +1,6 @@
 (ns com.jeaye.claw-game.physics
-  (:include "box2d/box2d.h")
+  (:include "box2d/box2d.h"
+            "raylib.h")
   (:require [com.jeaye.claw-game.box2d-trait]))
 
 (defn degrees-to-radians [deg]
@@ -45,6 +46,7 @@
                                   (/ bucket-height 2.0))
         bucket-shape-def (cpp/b2DefaultShapeDef)
         _ (cpp/= (.-isSensor bucket-shape-def) true)
+        _ (cpp/= (.-enableSensorEvents bucket-shape-def) true)
         _ (cpp/b2CreatePolygonShape bucket-id (cpp/& bucket-shape-def) (cpp/& bucket-box))
 
         bucket-wall-body-def (cpp/b2DefaultBodyDef)
@@ -112,6 +114,7 @@
         ; TODO: Circle, star, etc?
         shape-def (cpp/b2DefaultShapeDef)
         ; TODO: Mass.
+        _ (cpp/= (.-enableSensorEvents shape-def) true)
         _ (cpp/= (.-density shape-def) 1.0)
         _ (cpp/= (.-friction (.-material shape-def)) 0.3)]
     (dotimes [_ 100]

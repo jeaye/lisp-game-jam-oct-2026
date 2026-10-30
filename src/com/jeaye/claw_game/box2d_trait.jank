@@ -1,8 +1,7 @@
-(ns com.jeaye.claw-game.box2d-trait)
+(ns com.jeaye.claw-game.box2d-trait
+  (:include "box2d/box2d.h"))
 
 (cpp/raw "
-#include <raylib.h>
-
 #include <jank/runtime/context.hpp>
 #include <jank/runtime/convert.hpp>
 #include <jank/runtime/core/make_box.hpp>
