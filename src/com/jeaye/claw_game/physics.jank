@@ -15,10 +15,11 @@
 (def world-height 6.0)
 (def world-gravity -3.0)
 
+(def wall-width 0.2)
+
 (def bucket-width (* world-width 0.3))
 (def bucket-height (* world-height 0.3))
-
-(def wall-width 0.2)
+(def bucket-wall-width 0.1)
 
 (def claw-tip-offset 0.15)
 (def claw-max-open-angle (degrees-to-radians 90.0))
@@ -26,30 +27,37 @@
 (def claw-track-gain 10.0)
 (def claw-max-speed 3.0)
 
+; This controls the 
 (def sub-step-count 4)
 
 ; -----------------------------------------------------------------------------
 ; Creation
 
 (defn create-playspace! [^(:* b2WorldId) world-id]
-  (let [;playspace-body-def (cpp/b2DefaultBodyDef)
-        ;_ (cpp/= (.-position playspace-body-def) (cpp/b2Vec2 0.0 0.0))
-        ;playspace-id (cpp/b2CreateBody world-id (cpp/& playspace-body-def))
-
-        ;playspace-box (cpp/b2MakeBox (/ world-width 2.0) (/ world-height 2.0))
-        ;playspace-shape-def (cpp/b2DefaultShapeDef)
-        ;_ (cpp/b2CreatePolygonShape playspace-id (cpp/& playspace-shape-def) (cpp/& playspace-box))
-
-        bucket-body-def (cpp/b2DefaultBodyDef)
+  (let [bucket-body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-position bucket-body-def) (cpp/b2Vec2 (+ (/ world-width -2)
                                                              (/ bucket-width 2))
                                                           (+ (/ world-height -2)
                                                              (/ bucket-height 2))))
         bucket-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bucket-body-def))
 
-        bucket-box (cpp/b2MakeBox (/ bucket-width 2.0) (/ bucket-height 2.0))
+        bucket-box (cpp/b2MakeBox (/ bucket-width 2.0)
+                                  (/ bucket-height 2.0))
         bucket-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/= (.-isSensor bucket-shape-def) true)
         _ (cpp/b2CreatePolygonShape bucket-id (cpp/& bucket-shape-def) (cpp/& bucket-box))
+
+        bucket-wall-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position bucket-wall-body-def) (cpp/b2Vec2 (+ (/ world-width -2)
+                                                                  bucket-width
+                                                                  (/ bucket-wall-width 2))
+                                                               (+ (/ world-height -2)
+                                                                  (/ bucket-height 2))))
+        bucket-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bucket-wall-body-def))
+
+        bucket-wall-box (cpp/b2MakeBox (/ bucket-wall-width 2.0) (/ bucket-height 2.0))
+        bucket-wall-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape bucket-wall-id (cpp/& bucket-wall-shape-def) (cpp/& bucket-wall-box))
 
         left-wall-body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-position left-wall-body-def) (cpp/b2Vec2 (- (/ world-width -2)
@@ -77,7 +85,7 @@
                                                                   (/ wall-width 2))))
         top-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& top-wall-body-def))
 
-        top-wall-box (cpp/b2MakeBox (/ world-width 2.0) (/ wall-width 2.0))
+        top-wall-box (cpp/b2MakeBox (+ (/ world-width 2.0) wall-width) (/ wall-width 2.0))
         top-wall-shape-def (cpp/b2DefaultShapeDef)
         _ (cpp/b2CreatePolygonShape top-wall-id (cpp/& top-wall-shape-def) (cpp/& top-wall-box))
 
@@ -87,7 +95,7 @@
                                                                   (/ wall-width 2))))
         bottom-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bottom-wall-body-def))
 
-        bottom-wall-box (cpp/b2MakeBox (/ world-width 2.0) (/ wall-width 2.0))
+        bottom-wall-box (cpp/b2MakeBox (+ (/ world-width 2.0) wall-width) (/ wall-width 2.0))
         bottom-wall-shape-def (cpp/b2DefaultShapeDef)
         _ (cpp/b2CreatePolygonShape bottom-wall-id (cpp/& bottom-wall-shape-def) (cpp/& bottom-wall-box))]
     ))
