@@ -27,6 +27,7 @@
     (if (= :playing (:mode state))
       (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))
             delta (cpp/GetFrameTime)]
+        (physics/update-claw! state)
         (cpp/b2World_Step world-id delta physics/sub-step-count)
         state)
       state)

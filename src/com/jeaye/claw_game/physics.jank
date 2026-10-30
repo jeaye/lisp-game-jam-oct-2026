@@ -2,6 +2,12 @@
   (:include "box2d/box2d.h")
   (:require [com.jeaye.claw-game.box2d-trait]))
 
+(defn degrees-to-radians [deg]
+  (* deg (/ 3.14159 180.0)))
+
+(defn radians-to-degrees [rad]
+  (* rad (/ 180.0 3.14159)))
+
 ; The game world is 4 meters wide and 6 meters tall, to accomodate for box2d's
 ; physics which work well with moving objects from 0.1 meters to 10 meters.
 ; https://box2d.org/documentation/index.html#autotoc_md6
@@ -15,8 +21,15 @@
 (def wall-width 0.2)
 
 (def claw-tip-offset 0.15)
+(def claw-max-open-angle (degrees-to-radians 90.0))
+(def claw-max-close-angle (degrees-to-radians -90.0))
+(def claw-track-gain 10.0)
+(def claw-max-speed 3.0)
 
 (def sub-step-count 4)
+
+; -----------------------------------------------------------------------------
+; Creation
 
 (defn create-playspace! [^(:* b2WorldId) world-id]
   (let [;playspace-body-def (cpp/b2DefaultBodyDef)
@@ -106,9 +119,6 @@
                                     (cpp/& triangle)
                                     (cpp/& box)))))))
 
-(defn degrees-to-radians [deg]
-  (* deg (/ 3.14159 180.0)))
-
 (def claw-tip-points (let [third-length 0.3
                            half-third-length (/ third-length 2)
                            deg-30 (- (- third-length) (* third-length (cpp/cos (degrees-to-radians 30))))
@@ -129,6 +139,7 @@
         _ (cpp/= (.-position body-def) pos)
         _ (cpp/= (.-angularDamping body-def) 1.0)
         _ (cpp/= (.-isBullet body-def) true)
+        _ (cpp/= (.-enableSleep body-def) false)
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         shape-def (cpp/b2DefaultShapeDef)
@@ -165,7 +176,7 @@
 
             (cpp/= (.-enableMotor joint-def) true)
             (cpp/= (.-maxMotorTorque joint-def) 3.0)
-            (cpp/= (.-motorSpeed joint-def) (* 1.0 direction))
+            (cpp/= (.-motorSpeed joint-def) 0.0)
 
             (cpp/= (.-enableSpring joint-def) false))
         joint-id (cpp/b2CreateRevoluteJoint (cpp/* world-id) (cpp/& joint-def))]
@@ -201,15 +212,17 @@
 
         left-joint (create-claw-tip-joint! world-id
                                            left-hub-id-boxed left-tip
-                                           (degrees-to-radians -90.0)
-                                           (degrees-to-radians 90.0)
+                                           claw-max-close-angle
+                                           claw-max-open-angle
                                            -1.0)
         right-joint (create-claw-tip-joint! world-id
                                             right-hub-id-boxed right-tip
-                                            (degrees-to-radians -90.0)
-                                            (degrees-to-radians 90.0)
+                                            claw-max-close-angle
+                                            claw-max-open-angle
                                             1.0)]
-    {:left-joint-id left-joint
+    {:left-tip-id left-tip
+     :left-joint-id left-joint
+     :right-tip-id right-tip
      :right-joint-id right-joint}))
 
 (defn create-world! []
@@ -225,3 +238,49 @@
 (defn destroy-world! [id]
   (when id
     (cpp/b2DestroyWorld (cpp/* (cpp/unbox (:* b2WorldId) id)))))
+
+; -----------------------------------------------------------------------------
+; Updating
+
+(def gamepad-deadzone 0.05)
+
+; raylib gives us a gamepad axis of -1.0 (fully released) to 1.0 (fully pressed).
+; We want to normalize that to a range of 0.0 and 1.0, for our claw.
+(defn normalize-gamepad-axis [axis]
+  (let [t (* (+ axis 1.0) 0.5)]
+    (cond
+      (< t gamepad-deadzone)
+      0.0
+      (< (- 1.0 gamepad-deadzone) t)
+      1.0
+      :else
+      t)))
+
+(defn clamp [n min max]
+  (if (< n min)
+    min
+    (if (< max n)
+      max
+      n)))
+
+(defn lerp [n min max]
+  (+ min (* n (abs (- min max)))))
+
+(defn drive-claw-tip! [^(:* b2JointId) joint-id side axis]
+  (let [target (if (= :left side)
+                 (lerp axis claw-max-close-angle 0.0)
+                 (- claw-max-open-angle (lerp axis 0.0 claw-max-open-angle)))
+        current (cpp/b2RevoluteJoint_GetAngle (cpp/* joint-id))
+        speed (clamp (* claw-track-gain (- target current))
+                     (- claw-max-speed)
+                     claw-max-speed)]
+    (println :side (if (= 1.0 side) :left :right) :axis axis :target (radians-to-degrees target) :current (radians-to-degrees current) :speed speed)
+    (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
+
+(defn update-claw! [state]
+  (let [; TODO: Select gamepad?
+        left-axis (normalize-gamepad-axis (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_TRIGGER))
+        right-axis (normalize-gamepad-axis (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_RIGHT_TRIGGER))
+        {:keys [left-joint-id right-joint-id]} (:physics state)]
+    (drive-claw-tip! left-joint-id :left left-axis)
+    (drive-claw-tip! right-joint-id :right right-axis)))
