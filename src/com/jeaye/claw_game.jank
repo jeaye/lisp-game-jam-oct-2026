@@ -2,7 +2,8 @@
   (:include "raylib.h"
             "box2d/box2d.h"
             "box2d_draw.h")
-  (:require [com.jeaye.claw-game.physics :as physics]
+  (:require [clojure.string]
+            [com.jeaye.claw-game.physics :as physics]
             [com.jeaye.claw-game.bucket :as bucket]))
 
 (def global-state (atom nil))
@@ -41,18 +42,13 @@
                         (update state :queue conj (fn [state]
                                                     (start-game!))))))
 
+; Debug fn to replicate collecting a piece.
+(defn debug-collect-piece! [piece]
+  (swap! global-state (fn [state]
+                        (bucket/on-collect state piece))))
+
 (comment
   (restart-game!)
-
-  (defn collect-piece [piece]
-    (swap! global-state (fn [state]
-                          (bucket/on-collect state piece))))
-  (collect-piece {:type (:bonus-piece-type @global-state)})
-  (collect-piece {:type :triangle})
-  (collect-piece {:type :square})
-
-  (take 5 (repeatedly #(collect-piece {:type (rand-nth bucket/piece-types)})))
-
   (deref global-state))
 
 (defn update-time-remaining [state]
@@ -78,8 +74,15 @@
 (defn update-game [state]
   (try
 
+    ; debug hotkeys
     (when (cpp/IsKeyPressed cpp/KEY_ENTER)
       (restart-game!))
+    (when (cpp/IsKeyPressed cpp/KEY_ONE)
+      (debug-collect-piece! {:type :triangle}))
+    (when (cpp/IsKeyPressed cpp/KEY_TWO)
+      (debug-collect-piece! {:type :square}))
+    (when (cpp/IsKeyPressed cpp/KEY_ZERO)
+      (debug-collect-piece! {:type (:bonus-piece-type @global-state)}))
 
     ; TODO: conditionally update based on game mode
     (-> state
