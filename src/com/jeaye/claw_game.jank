@@ -23,6 +23,9 @@
    :score 0
    :bonus-piece-type (bucket/rand-bonus-piece-type)
    :time-remaining 10 ; seconds
+   :combo-time-remaining 0 ; seconds
+   :combo-score-multiplier 1
+   :combo-count 0
 
    ; Box2D can't be changed from another thread, so if we want to re-create the world, we
    ; need to do it on the main thread. Since each REPL command runs off the main thread,
@@ -48,6 +51,8 @@
   (collect-piece {:type :triangle})
   (collect-piece {:type :square})
 
+  (take 5 (repeatedly #(collect-piece {:type (rand-nth bucket/piece-types)})))
+
   (deref global-state))
 
 (defn update-time-remaining [state]
@@ -56,8 +61,19 @@
                            (max 0))]
     (cond-> state
       true (assoc :time-remaining time-remaining)
+      ; Game time complete. Game over.
       ; TODO: stop physics or disable collection on game over
       (zero? time-remaining) (assoc :mode :game-over))))
+
+(defn update-combo-time-remaining [state]
+  (let [time-remaining (-> (:combo-time-remaining state)
+                           (- (cpp/GetFrameTime))
+                           (max 0))]
+    (cond-> state
+      true (assoc :combo-time-remaining time-remaining)
+      ; Combo time complete. Reset the combo accumulators.
+      (zero? time-remaining) (assoc :combo-score-multiplier 1
+                                    :combo-count 0))))
 
 (defn update-game [state]
   (try
@@ -68,7 +84,8 @@
     ; TODO: conditionally update based on game mode
     (-> state
         physics/update!
-        update-time-remaining)
+        update-time-remaining
+        update-combo-time-remaining)
 
     (catch jank.runtime.object_ref e
       (log-error! (str "update exception: " (prn e)))
@@ -98,9 +115,12 @@
                     (select-keys state [:score
                                         :bonus-piece-type
                                         #_:time-remaining
+                                        :combo-time-remaining
+                                        :combo-score-multiplier
+                                        :combo-count
                                         :mode])
                     #"," ",\n")
-      200 20 20 (cpp/GetColor 0xff6ec7ff))
+      200 10 20 (cpp/GetColor 0xff6ec7ff))
 
     (cpp/EndDrawing)
     (catch jank.runtime.object_ref e

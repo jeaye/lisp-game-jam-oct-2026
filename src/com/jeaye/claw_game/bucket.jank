@@ -2,12 +2,8 @@
 
 ; TODO: core game loop
 ; - game modes/menus, transitions (main-menu, playing, paused, game-over)
-; - game timer (30s)
-; - score (simple, bonus, combo)
-; - bonus piece selection
 ; - game over stats
 ; - game pause
-; - controller support
 
 (def piece-types [:triangle :square])
 
@@ -24,7 +20,7 @@
   (let [score 100 ; base piece score
         score-multiplier 1 ; base score multiplier
 
-        ; Bonus piece scoring.
+        ; Bonus piece scoring. Bonus points, bonus time.
         ; TODO: consider requiring a new bonus shape type on re-select
         {:keys [bonus-piece-type
                 bonus-score-multiplier
@@ -36,31 +32,27 @@
            :bonus-score-multiplier 5 ; x base multiplier
            :bonus-time-remaining 10}) ; + seconds
 
-        ; TODO: combo scoring
-        ; if combo time remaining -> add multiplier, inc combo counter
-        ; else -> reset combo counter
-        ; add combo time
+        ; Combo scoring. Extra multiplier applied to every score.
+        {:keys [combo-score-multiplier]} state
 
-        score-multiplier (* score-multiplier bonus-score-multiplier)
+        score-multiplier (* score-multiplier
+                            bonus-score-multiplier
+                            combo-score-multiplier)
         score-total (* score score-multiplier)]
     (cond-> state
       true (update :score + score-total)
       ; Bonus piece scoring rewards, if applicable.
       (some? bonus-piece-type) (assoc :bonus-piece-type bonus-piece-type)
-      (pos? bonus-time-remaining) (update :time-remaining + bonus-time-remaining))))
+      (pos? bonus-time-remaining) (update :time-remaining + bonus-time-remaining)
+      ; Combo scoring. Extra points for pieces scored in quick succession.
+      ; Combo rewards are updated post-scoring, applied to the next piece scored.
+      true (assoc :combo-time-remaining 1) ; reset combo time, not additive
+      true (update :combo-score-multiplier + 0.5) ; increase multiplier with each score
+      true (update :combo-count inc))))
 
 ; TODO: call this on each piece collected by the bucket
 (defn on-collect [state piece]
   (let [state (add-score state piece)]
-    ; TODO: add metrics (scored, bonus, max combo, etc.)
+    ; TODO: add end game metrics (scored, bonus, max combo, etc.)
     ; TODO: spawn fx
     state))
-
-(comment
-  (let [delta (cpp/GetFrameTime)
-        state (if (pos? (:time-remaining state))
-                (let [state (update state :time-remaining - delta)
-                      _ (when (neg? (:time-remaining state)) (println "ded"))]
-                     state))]
-       state)
-  )
