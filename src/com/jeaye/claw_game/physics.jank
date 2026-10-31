@@ -1,7 +1,7 @@
 (ns com.jeaye.claw-game.physics
   (:include "box2d/box2d.h"
-            "raylib.h")
-  (:require [com.jeaye.claw-game.box2d-trait]))
+            "raylib.h"
+            "box2d-trait.hpp"))
 
 (defn degrees-to-radians [deg]
   (* deg (/ 3.14159 180.0)))
@@ -321,6 +321,7 @@
           (conj! pieces-to-remove (cpp/box (cpp/new b2BodyId shape-id))))))
     (if (empty? pieces-to-remove)
       state
+      ; TODO: Do we need a queue for this?
       (update state :queue conj (fn [state]
                                   (doseq [piece (persistent! pieces-to-remove)]
                                     (let [id (cpp/* (cpp/unbox (:* b2BodyId) piece))]
@@ -334,5 +335,6 @@
         state (do
                 (update-claw! state)
                 (update-pieces! state))]
+    ; TODO: Do this step before or after other updates?
     (cpp/b2World_Step world-id delta sub-step-count)
     state))

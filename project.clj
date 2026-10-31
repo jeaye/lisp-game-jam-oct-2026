@@ -4,9 +4,11 @@
   :dependencies [[org.jank-lang.commons/raylib-sys "2026.10-1"]
                  [org.jank-lang.commons/box2d-sys "2026.10-1"]
                  [org.jank-lang.commons/box2d-draw-sys "2026.10-1"]]
+  :build-dependencies [[org.jank-lang.commons/jank-build "2026.10-1"]]
   :plugins [[org.jank-lang/lein-jank "2026.10-2"]]
   :middleware [leiningen.jank/middleware]
   :main com.jeaye.claw-game
+  :jank {:include-dirs ["include"]}
   :profiles {:base {:jank {:target-dir "target/debug"
                            :optimization-level 0}}
              :release {:jank {:target-dir "target/release"
