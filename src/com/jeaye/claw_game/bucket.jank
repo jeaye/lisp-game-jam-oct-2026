@@ -14,47 +14,44 @@
 (comment
   ; Piece spec.
   ; TODO: add piece metadata in the phy object
-  {:piece-type [:enum piece-types]}
+  {:type [:enum piece-types]}
   )
 
-(defn rand-bonus-piece-type [] (rand-nth piece-types))
+(defn rand-bonus-piece-type []
+  (rand-nth piece-types))
 
-(defn add-score [state shape]
-  (let [score 100 ; base score
-        score-multiplier 1 ; base multiplier
+(defn add-score [state piece]
+  (let [score 100 ; base piece score
+        score-multiplier 1 ; base score multiplier
 
-        ; TODO: bonus
-        ; if compare shape type -> add multiplier, re-roll bonus shape, add time
-        ; else -> nop
+        ; Bonus piece scoring.
+        ; TODO: consider requiring a new bonus shape type on re-select
+        {:keys [bonus-piece-type
+                bonus-score-multiplier
+                bonus-time-remaining]
+         :or {bonus-score-multiplier 1
+              bonus-time-remaining 0}}
+        (when (= (:bonus-piece-type state) (:type piece))
+          {:bonus-piece-type (rand-bonus-piece-type) ; new bonus piece type
+           :bonus-score-multiplier 5 ; x base multiplier
+           :bonus-time-remaining 10}) ; + seconds
 
-        ;{:keys [state score-multiplier]}
-        ;(if (= (:bonus-shape-type state) (:type shape))
-        ;  ; Scored a shape matching the bonus shape.
-        ;  {; Bump the score multiplier for the bonus shape.
-        ;   :score-multiplier (* score-multiplier 2)
-        ;   :state (-> state
-        ;            ; Re-select a new bonus shape type.
-        ;            ; TODO: consider requiring a new bonus shape type
-        ;            (assoc :bonus-shape-type (rand-nth shape-types))
-        ;            ; Add remaining game time (seconds).
-        ;            (update :time-remaining + 3))}
-        ;  ; Non-bonus shape scored; nop.
-        ;  {:score-multiplier score-multiplier
-        ;   :state state})
-
-        ; TODO: combo
+        ; TODO: combo scoring
         ; if combo time remaining -> add multiplier, inc combo counter
         ; else -> reset combo counter
         ; add combo time
 
-        score-total (* score score-multiplier)
-        state (update state :score + score-total)]
-    state))
+        score-multiplier (* score-multiplier bonus-score-multiplier)
+        score-total (* score score-multiplier)]
+    (cond-> state
+      true (update :score + score-total)
+      ; Bonus piece scoring rewards, if applicable.
+      (some? bonus-piece-type) (assoc :bonus-piece-type bonus-piece-type)
+      (pos? bonus-time-remaining) (update :time-remaining + bonus-time-remaining))))
 
 ; TODO: call this on each piece collected by the bucket
 (defn on-collect [state piece]
   (let [state (add-score state piece)]
-    ; TODO: add score (simple, bonus (+ re-select + time), combo)
     ; TODO: add metrics (scored, bonus, max combo, etc.)
     ; TODO: spawn fx
     state))

@@ -22,7 +22,7 @@
 
    :score 0
    :bonus-piece-type (bucket/rand-bonus-piece-type)
-   :time-remaining 5 ; seconds
+   :time-remaining 10 ; seconds
 
    ; Box2D can't be changed from another thread, so if we want to re-create the world, we
    ; need to do it on the main thread. Since each REPL command runs off the main thread,
@@ -44,9 +44,9 @@
   (defn collect-piece [piece]
     (swap! global-state (fn [state]
                           (bucket/on-collect state piece))))
-  (collect-piece {:piece-type (:bonus-piece-type @global-state)})
-  (collect-piece {:piece-type :triangle})
-  (collect-piece {:piece-type :square})
+  (collect-piece {:type (:bonus-piece-type @global-state)})
+  (collect-piece {:type :triangle})
+  (collect-piece {:type :square})
 
   (deref global-state))
 
@@ -56,24 +56,20 @@
                            (max 0))]
     (cond-> state
       true (assoc :time-remaining time-remaining)
-      ; TODO: pause physics or disable collection on game over
+      ; TODO: stop physics or disable collection on game over
       (zero? time-remaining) (assoc :mode :game-over))))
 
 (defn update-game [state]
   (try
-    (let [state (physics/update! state)]
-      (condp = (:mode state)
-        :playing
-        (update-time-remaining state)
 
-        :game-over
-        (do
-          (when (cpp/IsKeyPressed cpp/KEY_ENTER)
-            (restart-game!))
-          state)
+    (when (cpp/IsKeyPressed cpp/KEY_ENTER)
+      (restart-game!))
 
-        :else
-        state))
+    ; TODO: conditionally update based on game mode
+    (-> state
+        physics/update!
+        update-time-remaining)
+
     (catch jank.runtime.object_ref e
       (log-error! (str "update exception: " (prn e)))
       state)
@@ -101,7 +97,7 @@
     (cpp/DrawText (clojure.string/replace
                     (select-keys state [:score
                                         :bonus-piece-type
-                                        :time-remaining
+                                        #_:time-remaining
                                         :mode])
                     #"," ",\n")
       200 20 20 (cpp/GetColor 0xff6ec7ff))
