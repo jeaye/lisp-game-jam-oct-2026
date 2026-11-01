@@ -4,10 +4,11 @@
             "box2d_draw.h")
   (:require [clojure.string]
             [com.jeaye.claw-game.physics :as physics]
-            [com.jeaye.claw-game.bucket :as bucket]))
+            [com.jeaye.claw-game.bucket :as bucket]
+            [com.jeaye.claw-game.gamepad :as gamepad]))
 
-(def global-state (atom nil))
-(def last-error (atom nil))
+(defonce global-state (atom nil))
+(defonce last-error (atom nil))
 
 ; Rather than spitting out the same error thousands of times, we dedupe
 ; so that repeated errors are logged once.
@@ -17,13 +18,12 @@
     (reset! last-error e)))
 
 (defn start-game! []
-  (physics/destroy-world! (get-in @global-state [:physics :world-id]))
-  {:mode :playing ; :playing, :game-over
-   :physics (physics/create-world!)
+  {:mode :gamepad-selection ; :gamepad-selection, :playing, :game-over
+   :gamepad-index 0
 
    :score 0
    :bonus-piece-type (bucket/rand-bonus-piece-type)
-   :time-remaining 10 ; seconds
+   :time-remaining 60 ; seconds
    :combo-time-remaining 0 ; seconds
    :combo-score-multiplier 1
    :combo-count 0
@@ -35,6 +35,12 @@
    ; We also use this to enqueue the destruction of box2d pieces, since they can't be
    ; destroyed during the update loop.
    :queue []})
+
+(defn start-playing! [state]
+  (physics/destroy-world! (get-in state [:physics :world-id]))
+  (assoc state
+         :mode :playing
+         :physics (physics/create-world!)))
 
 ; This will restart the game in a thread-safe fashion.
 (defn restart-game! []
@@ -73,23 +79,31 @@
 
 (defn update-game [state]
   (try
+    (case (:mode state)
+      :gamepad-selection
+      (let [id (gamepad/find-gamepad-index)]
+        (if (<= 0 id)
+          (assoc (start-playing! state)
+                 :gamepad-index id)
+          state))
 
-    ; debug hotkeys
-    (when (cpp/IsKeyPressed cpp/KEY_ENTER)
-      (restart-game!))
-    (when (cpp/IsKeyPressed cpp/KEY_ONE)
-      (debug-collect-piece! {:type :triangle}))
-    (when (cpp/IsKeyPressed cpp/KEY_TWO)
-      (debug-collect-piece! {:type :square}))
-    (when (cpp/IsKeyPressed cpp/KEY_ZERO)
-      (debug-collect-piece! {:type (:bonus-piece-type @global-state)}))
+      :playing
+      (do
+        ; debug hotkeys
+        (when (cpp/IsKeyPressed cpp/KEY_ENTER)
+          (restart-game!))
+        (when (cpp/IsKeyPressed cpp/KEY_ONE)
+          (debug-collect-piece! {:type :triangle}))
+        (when (cpp/IsKeyPressed cpp/KEY_TWO)
+          (debug-collect-piece! {:type :square}))
+        (when (cpp/IsKeyPressed cpp/KEY_ZERO)
+          (debug-collect-piece! {:type (:bonus-piece-type @global-state)}))
 
-    ; TODO: conditionally update based on game mode
-    (-> state
-        physics/update!
-        update-time-remaining
-        update-combo-time-remaining)
-
+        (-> state
+            physics/update!
+            update-time-remaining
+            update-combo-time-remaining))
+      state)
     (catch jank.runtime.object_ref e
       (log-error! (str "update exception: " (prn e)))
       state)
@@ -103,27 +117,49 @@
       (log-error! "update exception")
       state)))
 
+(defn draw-centered-text! [msg font-size y-offset]
+  (let [width (cpp/GetScreenWidth)
+        height (cpp/GetScreenHeight)
+        length (cpp/MeasureText msg font-size)]
+    (cpp/DrawText msg
+                  (- (/ width 2) (/ length 2))
+                  (+ (/ height 2) y-offset)
+                  font-size
+                  (cpp/GetColor 0xff6ec7ff))))
+
 (defn render-game! [state]
   (try
     (cpp/BeginDrawing)
     (cpp/ClearBackground cpp/BLACK)
 
-    (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.5)))
-          world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
-      (cpp/b2World_Draw world-id (cpp/& debug)))
+    (case (:mode state)
+      :gamepad-selection
+      (do
+        (let [msg (format "PRESS THE {} BUTTON" (gamepad/get-accept-button-name))
+              font-size 40]
+          (draw-centered-text! msg font-size 0)
+          (draw-centered-text "ON YOUR CONTROLLER" font-size font-size)
+          (draw-centered-text! "TO BEGIN" font-size (* 2 font-size))))
 
-    #_(cpp/DrawText (cpp/TextFormat "score: %i" (:score state)) 200 20 20 (cpp/GetColor 0xff6ec7ff))
-    #_(cpp/DrawText (str "bonus piece: " (-> state :bonus-piece-type name)) 200 40 20 (cpp/GetColor 0xff6ec7ff))
-    (cpp/DrawText (clojure.string/replace
-                    (select-keys state [:score
-                                        :bonus-piece-type
-                                        #_:time-remaining
-                                        :combo-time-remaining
-                                        :combo-score-multiplier
-                                        :combo-count
-                                        :mode])
-                    #"," ",\n")
-      200 10 20 (cpp/GetColor 0xff6ec7ff))
+      (:playing :game-over)
+      (do
+        (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.5)))
+              world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
+          (cpp/b2World_Draw world-id (cpp/& debug)))
+
+        #_(cpp/DrawText (cpp/TextFormat "score: %i" (:score state)) 200 20 20 (cpp/GetColor 0xff6ec7ff))
+        #_(cpp/DrawText (str "bonus piece: " (-> state :bonus-piece-type name)) 200 40 20 (cpp/GetColor 0xff6ec7ff))
+        (cpp/DrawText (clojure.string/replace
+                        (select-keys state [:score
+                                            :bonus-piece-type
+                                            :time-remaining
+                                            :combo-time-remaining
+                                            :combo-score-multiplier
+                                            :combo-count
+                                            :mode])
+                        #"," ",\n")
+                      200 10 20 (cpp/GetColor 0xff6ec7ff)))
+      nil)
 
     (cpp/EndDrawing)
     (catch jank.runtime.object_ref e

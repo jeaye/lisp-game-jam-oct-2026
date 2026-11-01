@@ -1,0 +1,45 @@
+(ns com.jeaye.claw-game.gamepad
+  (:include "raylib.h"))
+
+; When we prompt the user to press a button on their controller, we
+; specifically want them to press the "accept" button. On PS controllers,
+; that's X. On Xbox controllers, that's A. Otherwise, we call it A.
+;
+; This function determines which one to use based on the names of the
+; gamepads which are attached.
+(defn get-accept-button-name []
+  (let [names (map #(if (cpp/IsGamepadAvailable %)
+                      (clojure.string/lower-case (cpp/GetGamepadName %))
+                      "")
+                   (range 16))]
+    (or (some (fn [gamepad]
+                (cond
+                  (clojure.string/includes? gamepad "dualsense")
+                  "X"
+
+                  (clojure.string/includes? gamepad "xbox")
+                  "A"
+
+                  :else
+                  nil))
+              names)
+        "A")))
+
+; Loops through all gamepads to see if any of them have pressed the "accept"
+; button. This corresponds with the `get-accept-button-name` button we
+; ask them to press. We return the index of the gamepad found so that way we
+; can use it for the rest of the game.
+(defn find-gamepad-index []
+  (loop [i 0]
+    (cond
+      (= 16 i)
+      -1
+
+      (not (cpp/IsGamepadAvailable i))
+      (recur (inc i))
+
+      :else
+      (if (cpp/IsGamepadButtonPressed i cpp/GAMEPAD_BUTTON_RIGHT_FACE_DOWN)
+        i
+        (recur (inc i))))))
+

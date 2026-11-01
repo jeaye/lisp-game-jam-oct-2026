@@ -296,14 +296,22 @@
   (cpp/b2Body_SetLinearVelocity (cpp/* left-hub-id) axes)
   (cpp/b2Body_SetLinearVelocity (cpp/* right-hub-id) axes))
 
+(comment
+  (cpp/GetGamepadName 1)
+  (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_TRIGGER))
+
 (defn update-claw! [state]
   (let [{:keys [left-joint-id right-joint-id
                 left-hub-id right-hub-id]} (:physics state)
-        ; TODO: Select gamepad?
-        left-claw (normalize-claw-tip-axis (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_TRIGGER))
-        right-claw (normalize-claw-tip-axis (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_RIGHT_TRIGGER))
-        x (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_X)
-        y (- (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_Y))]
+        {:keys [gamepad-index]} state
+        left-claw (-> (cpp/GetGamepadAxisMovement gamepad-index
+                                                  cpp/GAMEPAD_AXIS_LEFT_TRIGGER)
+                      normalize-claw-tip-axis)
+        right-claw (-> (cpp/GetGamepadAxisMovement gamepad-index
+                                                   cpp/GAMEPAD_AXIS_RIGHT_TRIGGER)
+                       normalize-claw-tip-axis)
+        x (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_X)
+        y (- (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_Y))]
     ;(println :pos {:x x :y y})
     (drive-claw-tip! left-joint-id :left left-claw)
     (drive-claw-tip! right-joint-id :right right-claw)
