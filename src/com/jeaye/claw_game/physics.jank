@@ -178,10 +178,11 @@
         _ (do
             (cpp/= (.-bodyIdA (.-base joint-def)) (cpp/* hub-id))
             (cpp/= (.-bodyIdB (.-base joint-def)) (cpp/* tip-id))
-            (cpp/= (.-p (.-localFrameA (.-base joint-def))) (cpp/b2Vec2 0.0 0.0))
-            (cpp/= (.-q (.-localFrameA (.-base joint-def))) (cpp/b2MakeRot 0.0))
+            (cpp/= (.-p (.-localFrameA (.-base joint-def))) (cpp/b2Vec2 (if (= :left direction)
+                                                                          -0.3
+                                                                          0.3)
+                                                                        0.0))
             (cpp/= (.-p (.-localFrameB (.-base joint-def))) (cpp/b2Vec2 0.0 0.0))
-            (cpp/= (.-q (.-localFrameB (.-base joint-def))) (cpp/b2MakeRot 0.0))
             (cpp/= (.-collideConnected (.-base joint-def)) false)
 
             (cpp/= (.-enableLimit joint-def) true)
@@ -196,48 +197,89 @@
         joint-id (cpp/b2CreateRevoluteJoint (cpp/* world-id) (cpp/& joint-def))]
     (cpp/box (cpp/new b2JointId joint-id))))
 
-(defn create-claw! [world-id]
-  (let [world-id* (cpp/unbox (:* b2WorldId) world-id)
+(defn create-claw-carriage-distance-joint! [^(:* b2WorldId) world-id
+                                   ^(:* b2BodyId) central-hub-id
+                                   ^(:* b2BodyId) hub-id]
+  (let [joint-def (cpp/b2DefaultDistanceJointDef)
+        _ (do
+            (cpp/= (.-bodyIdA (.-base joint-def)) (cpp/* central-hub-id))
+            (cpp/= (.-bodyIdB (.-base joint-def)) (cpp/* hub-id)))
+        joint-id (cpp/b2CreateDistanceJoint (cpp/* world-id) (cpp/& joint-def))]
+    (cpp/box (cpp/new b2JointId joint-id))))
 
+(defn create-claw-carriage-revolute-joint! [^(:* b2WorldId) world-id
+                                            ^(:* b2BodyId) carriage-id
+                                            ^(:* b2BodyId) hub-id]
+  (let [joint-def (cpp/b2DefaultRevoluteJointDef)
+        _ (do
+            (cpp/= (.-bodyIdA (.-base joint-def)) (cpp/* carriage-id))
+            (cpp/= (.-bodyIdB (.-base joint-def)) (cpp/* hub-id))
+            (cpp/= (.-p (.-localFrameA (.-base joint-def))) (cpp/b2Vec2 0.0 -0.5))
+            (cpp/= (.-p (.-localFrameB (.-base joint-def))) (cpp/b2Vec2 0.0 0.0))
+            (cpp/= (.-collideConnected (.-base joint-def)) false)
+
+            (cpp/= (.-enableLimit joint-def) true)
+            (cpp/= (.-lowerAngle joint-def) (degrees-to-radians -45.0))
+            (cpp/= (.-upperAngle joint-def) (degrees-to-radians 45.0))
+
+            (cpp/= (.-enableMotor joint-def) true)
+            (cpp/= (.-maxMotorTorque joint-def) 3.0)
+            (cpp/= (.-motorSpeed joint-def) 0.0)
+
+            (cpp/= (.-enableSpring joint-def) false))
+        joint-id (cpp/b2CreateRevoluteJoint (cpp/* world-id) (cpp/& joint-def))]
+    (cpp/box (cpp/new b2JointId joint-id))))
+
+(defn create-claw-carriage! [world-id]
+  (let [world-id* (cpp/unbox (:* b2WorldId) world-id)
         hub-box (cpp/b2MakeBox 0.1 0.1)
 
-        left-hub-pos {:x -0.3 :y (- (/ world-height 2) 0.5)}
-        left-hub-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-type left-hub-def) cpp/b2_kinematicBody)
-        _ (cpp/= (.-position left-hub-def) (cpp/cast b2Vec2 left-hub-pos))
-        left-hub-id (cpp/b2CreateBody (cpp/* world-id*) (cpp/& left-hub-def))
-        left-hub-id-boxed (cpp/box (cpp/new b2BodyId left-hub-id))
-        left-hub-shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/b2CreatePolygonShape left-hub-id (cpp/& left-hub-shape-def) (cpp/& hub-box))
+        carriage-pos {:x 0.0 :y (- (/ world-height 2) 1)}
+        carriage-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-type carriage-def) cpp/b2_kinematicBody)
+        _ (cpp/= (.-position carriage-def) (cpp/cast b2Vec2 carriage-pos))
+        carriage-id (cpp/b2CreateBody (cpp/* world-id*) (cpp/& carriage-def))
+        carriage-id-boxed (cpp/box (cpp/new b2BodyId carriage-id))
+        carriage-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape carriage-id (cpp/& carriage-shape-def) (cpp/& hub-box))
 
-        right-hub-pos {:x 0.3 :y (- (/ world-height 2) 0.5)}
-        right-hub-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-type right-hub-def) cpp/b2_kinematicBody)
-        _ (cpp/= (.-position right-hub-def) (cpp/cast b2Vec2 right-hub-pos))
-        right-hub-id (cpp/b2CreateBody (cpp/* world-id*) (cpp/& right-hub-def))
-        right-hub-id-boxed (cpp/box (cpp/new b2BodyId right-hub-id))
-        right-hub-shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/b2CreatePolygonShape right-hub-id (cpp/& right-hub-shape-def) (cpp/& hub-box))
+        central-hub-pos {:x 0.0 :y (- (/ world-height 2) 0.5)}
+        central-hub-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-type central-hub-def) cpp/b2_dynamicBody)
+        _ (cpp/= (.-position central-hub-def) (cpp/cast b2Vec2 central-hub-pos))
+        central-hub-id (cpp/b2CreateBody (cpp/* world-id*) (cpp/& central-hub-def))
+        central-hub-id-boxed (cpp/box (cpp/new b2BodyId central-hub-id))
+        central-hub-shape-def (cpp/b2DefaultShapeDef)
+        central-hub-box (cpp/b2MakeBox 0.3 0.1)
+        _ (cpp/b2CreatePolygonShape central-hub-id (cpp/& central-hub-shape-def) (cpp/& central-hub-box))
 
-        left-tip-pos (update left-hub-pos :x - 0.3)
-        left-tip (create-claw-tip! world-id left-tip-pos :left)
-        right-tip-pos (update right-hub-pos :x + 0.3)
-        right-tip (create-claw-tip! world-id right-tip-pos :right)
+        central-hub-joint-id (create-claw-carriage-revolute-joint! world-id carriage-id-boxed central-hub-id-boxed)
+        ]
+    {:carriage-id carriage-id-boxed
+     :central-hub-id central-hub-id-boxed}))
+
+(defn create-claw! [world-id]
+  (let [{:keys [carriage-id
+                central-hub-id]} (create-claw-carriage! world-id)
+
+        left-tip (create-claw-tip! world-id {:x -0.3 :y 0.5} :left)
+        right-tip (create-claw-tip! world-id {:x 0.3 :y 0.5} :right)
 
         left-joint (create-claw-tip-joint! world-id
-                                           left-hub-id-boxed left-tip
+                                           central-hub-id left-tip
                                            claw-max-close-angle
                                            claw-max-open-angle
-                                           -1.0)
+                                           :left)
         right-joint (create-claw-tip-joint! world-id
-                                            right-hub-id-boxed right-tip
+                                            central-hub-id right-tip
                                             claw-max-close-angle
                                             claw-max-open-angle
-                                            1.0)]
-    {:left-hub-id left-hub-id-boxed
+                                            :right)
+        ]
+    {:carriage-id carriage-id
+     :central-hub-id central-hub-id
      :left-tip-id left-tip
      :left-joint-id left-joint
-     :right-hub-id right-hub-id-boxed
      :right-tip-id right-tip
      :right-joint-id right-joint}))
 
@@ -292,19 +334,17 @@
                      claw-max-speed)]
     (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
 
-(defn drive-claw-hubs! [^(:* b2BodyId) left-hub-id
-                        ^(:* b2BodyId) right-hub-id
+(defn drive-claw-hubs! [^(:* b2BodyId) central-hub-id
                         axes]
-  (cpp/b2Body_SetLinearVelocity (cpp/* left-hub-id) axes)
-  (cpp/b2Body_SetLinearVelocity (cpp/* right-hub-id) axes))
+  (cpp/b2Body_SetLinearVelocity (cpp/* central-hub-id) axes))
 
 (comment
   (cpp/GetGamepadName 1)
   (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_TRIGGER))
 
 (defn update-claw! [state]
-  (let [{:keys [left-joint-id right-joint-id
-                left-hub-id right-hub-id]} (:physics state)
+  (let [{:keys [carriage-id
+                left-joint-id right-joint-id]} (:physics state)
         {:keys [gamepad-index]} state
         left-claw (-> (cpp/GetGamepadAxisMovement gamepad-index
                                                   cpp/GAMEPAD_AXIS_LEFT_TRIGGER)
@@ -318,8 +358,8 @@
     (drive-claw-tip! left-joint-id :left left-claw)
     (drive-claw-tip! right-joint-id :right right-claw)
     ; TODO: Deal with drift. Deadzone?
-    (drive-claw-hubs! left-hub-id right-hub-id {:x x
-                                                :y y})))
+    (drive-claw-hubs! carriage-id {:x x
+                                   :y y})))
 
 (defn update-pieces! [state]
   (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))

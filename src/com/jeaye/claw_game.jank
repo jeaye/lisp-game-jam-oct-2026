@@ -147,6 +147,7 @@
       (do
         ; Restart the game on accept button pressed.
         (when (gamepad/is-accept-button-pressed (:gamepad-index state))
+          ; TODO: This requires pressing X twice. Let's jump right into :playing instead.
           (restart-game!))
 
         state)
