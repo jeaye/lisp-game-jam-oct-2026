@@ -112,7 +112,8 @@
             (cpp/= (cpp/aget triangle-points 2) (cpp/b2Vec2 0.1 -0.057735)))
         triangle-hull (cpp/b2ComputeHull triangle-points 3)
         triangle (cpp/b2MakePolygon (cpp/& triangle-hull) 0.0)
-        ; TODO: Circle, star, etc?
+        circle (cpp/b2Circle (cpp/b2Vec2 0.0 0.0) 0.1)
+        ; TODO: More shapes? Star?
         shape-def (cpp/b2DefaultShapeDef)
         ; TODO: Mass.
         _ (cpp/= (.-enableSensorEvents shape-def) true)
@@ -125,11 +126,12 @@
                                                        (rand (/ world-height -2))))
             body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
             body-type (rand-int 3)]
-        (cpp/b2CreatePolygonShape body-id
-                                  (cpp/& shape-def)
-                                  (if (= 0 body-type)
-                                    (cpp/& triangle)
-                                    (cpp/& box)))))))
+        ; TODO: cannot use case here, causes compile error expecting same response type in each branch
+        (if (= 0 body-type)
+          (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& triangle))
+          (if (= 1 body-type)
+            (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box))
+            (cpp/b2CreateCircleShape body-id (cpp/& shape-def) (cpp/& circle))))))))
 
 (def claw-tip-points (let [third-length 0.3
                            half-third-length (/ third-length 2)

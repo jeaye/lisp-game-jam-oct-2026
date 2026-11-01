@@ -5,7 +5,7 @@
 ; - game over stats
 ; - game pause
 
-(def piece-types [:triangle :square])
+(def piece-types [:triangle :square :circle])
 
 (comment
   ; Piece spec.
