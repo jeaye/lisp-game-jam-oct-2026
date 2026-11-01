@@ -17,6 +17,7 @@
     (println e)
     (reset! last-error e)))
 
+; TODO: remove bang
 (defn start-game! []
   {:mode :gamepad-selection ; :gamepad-selection, :playing, :game-over
    :gamepad-index 0
@@ -103,6 +104,16 @@
             physics/update!
             update-time-remaining
             update-combo-time-remaining))
+
+      :game-over
+      (do
+        ; Restart the game on accept button pressed.
+        (when (gamepad/is-accept-button-pressed (:gamepad-index state))
+          (restart-game!))
+
+        state)
+
+      ; :else
       state)
     (catch jank.runtime.object_ref e
       (log-error! (str "update exception: " (prn e)))
@@ -127,6 +138,34 @@
                   font-size
                   (cpp/GetColor 0xff6ec7ff))))
 
+(defn draw-world! [state]
+  (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.5)))
+        world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
+    (cpp/b2World_Draw world-id (cpp/& debug))))
+
+(defn draw-ui! [state]
+  (when (= :game-over (:mode state))
+    ; TODO: add complete game over stats
+    ; TODO: add better formatting and styling
+    (cpp/DrawRectangle 145 200 430 140 cpp/MAGENTA)
+    (cpp/DrawRectangle 150 205 420 130 cpp/BLACK)
+    (cpp/DrawText "GAME OVER" 160 215 30 cpp/MAGENTA)
+    (cpp/DrawText (format "SCORE: {}" (:score state)) 160 250 20 cpp/MAGENTA)
+    (cpp/DrawText (format "PRESS THE {} BUTTON TO RESTART" (gamepad/get-accept-button-name))
+                  160 305 20 cpp/MAGENTA))
+
+  ; debug
+  (cpp/DrawText (clojure.string/replace
+                  (select-keys state [:score
+                                      :bonus-piece-type
+                                      :time-remaining
+                                      :combo-time-remaining
+                                      :combo-score-multiplier
+                                      :combo-count
+                                      :mode])
+                  #"," ",\n")
+                200 10 20 cpp/MAGENTA))
+
 (defn render-game! [state]
   (try
     (cpp/BeginDrawing)
@@ -143,22 +182,10 @@
 
       (:playing :game-over)
       (do
-        (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.5)))
-              world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
-          (cpp/b2World_Draw world-id (cpp/& debug)))
+        (draw-world! state)
+        (draw-ui! state))
 
-        #_(cpp/DrawText (cpp/TextFormat "score: %i" (:score state)) 200 20 20 (cpp/GetColor 0xff6ec7ff))
-        #_(cpp/DrawText (str "bonus piece: " (-> state :bonus-piece-type name)) 200 40 20 (cpp/GetColor 0xff6ec7ff))
-        (cpp/DrawText (clojure.string/replace
-                        (select-keys state [:score
-                                            :bonus-piece-type
-                                            :time-remaining
-                                            :combo-time-remaining
-                                            :combo-score-multiplier
-                                            :combo-count
-                                            :mode])
-                        #"," ",\n")
-                      200 10 20 (cpp/GetColor 0xff6ec7ff)))
+      ; :else
       nil)
 
     (cpp/EndDrawing)

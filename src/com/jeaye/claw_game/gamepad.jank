@@ -25,6 +25,9 @@
               names)
         "A")))
 
+(defn is-accept-button-pressed [index]
+  (cpp/IsGamepadButtonPressed index cpp/GAMEPAD_BUTTON_RIGHT_FACE_DOWN))
+
 ; Loops through all gamepads to see if any of them have pressed the "accept"
 ; button. This corresponds with the `get-accept-button-name` button we
 ; ask them to press. We return the index of the gamepad found so that way we
@@ -39,7 +42,7 @@
       (recur (inc i))
 
       :else
-      (if (cpp/IsGamepadButtonPressed i cpp/GAMEPAD_BUTTON_RIGHT_FACE_DOWN)
+      (if (is-accept-button-pressed i)
         i
         (recur (inc i))))))
 
