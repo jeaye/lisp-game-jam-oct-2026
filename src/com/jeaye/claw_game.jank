@@ -1,7 +1,8 @@
 (ns com.jeaye.claw-game
   (:include "raylib.h"
             "box2d/box2d.h"
-            "box2d_draw.h")
+            "box2d_draw.h"
+            "box2d-trait.hpp")
   (:require [clojure.string]
             [com.jeaye.claw-game.physics :as physics]
             [com.jeaye.claw-game.bucket :as bucket]
@@ -28,6 +29,8 @@
    :combo-time-remaining 0 ; seconds
    :combo-score-multiplier 1
    :combo-count 0
+
+   ; :physics {:world-id ^(:* b2WorldId) _}
 
    ; Box2D can't be changed from another thread, so if we want to re-create the world, we
    ; need to do it on the main thread. Since each REPL command runs off the main thread,
@@ -56,6 +59,41 @@
 
 (comment
   (restart-game!)
+
+  ;You can if you want. It just requires some jank c++ internals.
+  ;We'd want to store object_ref data in the box2d user data void*.
+  ;
+  ;That will allow us to get back to clojure data. You'll want the
+  ;.-data member of an erased jank object. Then you can cpp/unsafe-cast
+  ;it from void* back to jank::runtime::object* when you want.
+  ;
+  ;Call .erase first, then access .-data on it.
+
+  (defn create-piece! [^(:* b2WorldId) world-id]
+    (let [box (cpp/b2MakeBox 0.1 0.1)
+          shape-def (cpp/b2DefaultShapeDef)
+          _ (cpp/= (.-enableSensorEvents shape-def) true)
+          _ (cpp/= (.-density shape-def) 1.0)
+          _ (cpp/= (.-friction (.-material shape-def)) 0.3)
+          body-def (cpp/b2DefaultBodyDef)
+          _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+          _ (cpp/= (.-position body-def) (cpp/b2Vec2 0.0 0.0))
+          body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
+      (cpp/box (cpp/& (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box))))))
+
+  (def debug-shape (atom nil))
+  (reset! debug-shape (create-piece! (get-in @global-state [:physics :world-id])))
+  (deref debug-shape)
+
+  (defn set-user-data [^(:* b2ShapeId) shape-id* user-data]
+    (let [void* (.-data (.erase user-data))
+          ; TODO: ─ analyze/invalid-cpp-member-access ──────────────────────────────────
+          ; error: The `data` member within `jank::runtime::oref<jank::runtime::object>` is private. It can only be accessed if it's public.
+          ;
+          ; https://book.jank-lang.org/reference/error/analyze/invalid-cpp-member-access.html
+          _ (cpp/b2Shape_SetUserData (cpp/* shape-id*) void*)]))
+  (set-user-data @debug-shape {:piece-type :square})
+
   (deref global-state))
 
 (defn update-time-remaining [state]
