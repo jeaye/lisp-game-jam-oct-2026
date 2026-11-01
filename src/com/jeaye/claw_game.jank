@@ -201,6 +201,7 @@
 (defn -main [& args]
   (cpp/InitWindow 720 1080 "janky claw")
   (cpp/SetTargetFPS 60)
+  (cpp/HideCursor)
 
   (reset! global-state (start-game!))
   (while (cpp/! (cpp/WindowShouldClose))
