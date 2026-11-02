@@ -90,6 +90,7 @@
   * We assume that relative dirs are under `*out*`
   * We don't provide an input for the project dir
 * The lack of LSP makes both Clojure and C++ work so bothersome
+* Calling `(.raw (.erase param))` leads to codegen issue
 
 ### Box2D
 * API search box doesn't do anything (firefox and chromium)
