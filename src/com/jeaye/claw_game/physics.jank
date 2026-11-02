@@ -30,9 +30,10 @@
 (def claw-max-speed 3.0)
 
 ; Number of pieces of each shape to create.
-(def box-create-count 33)
-(def triangle-create-count 33)
-(def circle-create-count 33)
+(def box-create-count 20)
+(def triangle-create-count 20)
+(def circle-create-count 20)
+(def capsule-create-count 10)
 (def rectangle-create-count 3)
 
 ; This controls the number of sub-steps that box2d does per tick.
@@ -155,6 +156,18 @@
                                                          (rand (/ world-height -2))))
               body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
           (cpp/b2CreateCircleShape body-id (cpp/& shape-def) (cpp/& circle)))))
+
+    ; spawn capsules
+    (let [capsule (cpp/b2Capsule (cpp/b2Vec2 -0.1 -0.1)
+                                 (cpp/b2Vec2  0.1  0.1)
+                                 0.1)]
+      (dotimes [_ circle-create-count]
+        (let [body-def (cpp/b2DefaultBodyDef)
+              _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+              _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
+                                                         (rand (/ world-height -2))))
+              body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
+          (cpp/b2CreateCapsuleShape body-id (cpp/& shape-def) (cpp/& capsule)))))
 
     ; spawn rectangles
     ; TODO: rectangles can spawn intersectting the walls
