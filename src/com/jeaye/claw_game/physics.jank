@@ -26,6 +26,7 @@
 (def claw-tip-offset 0.15)
 (def claw-max-open-angle (degrees-to-radians 90.0))
 (def claw-max-close-angle (degrees-to-radians -90.0))
+(def claw-max-rotation-angle (degrees-to-radians 45.0))
 (def claw-track-gain 10.0)
 (def claw-max-speed 3.0)
 
@@ -305,11 +306,13 @@
         central-hub-joint-id (create-claw-carriage-revolute-joint! world-id carriage-id-boxed central-hub-id-boxed)
         ]
     {:carriage-id carriage-id-boxed
-     :central-hub-id central-hub-id-boxed}))
+     :central-hub-id central-hub-id-boxed
+     :central-hub-joint-id central-hub-joint-id}))
 
 (defn create-claw! [world-id]
   (let [{:keys [carriage-id
-                central-hub-id]} (create-claw-carriage! world-id)
+                central-hub-id
+                central-hub-joint-id]} (create-claw-carriage! world-id)
 
         left-tip (create-claw-tip! world-id {:x -0.3 :y 0.5} :left)
         right-tip (create-claw-tip! world-id {:x 0.3 :y 0.5} :right)
@@ -327,6 +330,7 @@
         ]
     {:carriage-id carriage-id
      :central-hub-id central-hub-id
+     :central-hub-joint-id central-hub-joint-id
      :left-tip-id left-tip
      :left-joint-id left-joint
      :right-tip-id right-tip
@@ -383,29 +387,39 @@
                      claw-max-speed)]
     (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
 
+(defn drive-claw-rotation! [^(:* b2JointId) joint-id axis]
+  (let [target (if (< axis 0.0)
+                 (lerp axis 0.0 (- claw-max-rotation-angle))
+                 (lerp axis 0.0 claw-max-rotation-angle))
+        current (cpp/b2RevoluteJoint_GetAngle (cpp/* joint-id))
+        speed (clamp (* claw-track-gain (- target current))
+                     (- claw-max-speed)
+                     claw-max-speed)]
+    (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
+
 (defn drive-claw-carriage! [^(:* b2BodyId) carriage-id
                             axes]
   (cpp/b2Body_SetLinearVelocity (cpp/* carriage-id) axes))
 
-(comment
-  (cpp/GetGamepadName 1)
-  (cpp/GetGamepadAxisMovement 1 cpp/GAMEPAD_AXIS_LEFT_TRIGGER))
-
 (defn update-claw! [state]
   (let [{:keys [carriage-id
+                central-hub-joint-id
                 left-joint-id right-joint-id]} (:physics state)
         {:keys [gamepad-index]} state
-        left-claw (-> (cpp/GetGamepadAxisMovement gamepad-index
-                                                  cpp/GAMEPAD_AXIS_LEFT_TRIGGER)
-                      normalize-claw-tip-axis)
-        right-claw (-> (cpp/GetGamepadAxisMovement gamepad-index
-                                                   cpp/GAMEPAD_AXIS_RIGHT_TRIGGER)
-                       normalize-claw-tip-axis)
+        left-claw-axis (-> (cpp/GetGamepadAxisMovement gamepad-index
+                                                       cpp/GAMEPAD_AXIS_LEFT_TRIGGER)
+                           normalize-claw-tip-axis)
+        right-claw-axis (-> (cpp/GetGamepadAxisMovement gamepad-index
+                                                        cpp/GAMEPAD_AXIS_RIGHT_TRIGGER)
+                            normalize-claw-tip-axis)
+        rotation-axis (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_RIGHT_X)
         pos-x (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_X)
         pos-y (- (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_Y))]
     ;(println :pos {:x x :y y})
-    (drive-claw-tip! left-joint-id :left left-claw)
-    (drive-claw-tip! right-joint-id :right right-claw)
+    ;(println :rotation-axis rotation-axis)
+    (drive-claw-tip! left-joint-id :left left-claw-axis)
+    (drive-claw-tip! right-joint-id :right right-claw-axis)
+    (drive-claw-rotation! central-hub-joint-id rotation-axis)
     ; TODO: Deal with drift. Deadzone?
     (drive-claw-carriage! carriage-id {:x pos-x
                                        :y pos-y})))
