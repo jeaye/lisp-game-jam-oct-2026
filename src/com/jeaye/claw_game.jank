@@ -71,7 +71,7 @@
         _ (cpp/= (.-position body-def) (cpp/b2Vec2 0.0 0.0))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         shape-id (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box))]
-    (cpp/box (cpp/& shape-id))))
+    (cpp/box (cpp/new b2ShapeId shape-id))))
 (defn debug-set-user-data! [^(:* b2ShapeId) shape-id]
   (let [void* (cpp/get_raw_object_ptr debug-user-data)
         _ (cpp/b2Shape_SetUserData (cpp/* shape-id) void*)]
@@ -175,7 +175,7 @@
                   (cpp/GetColor 0xff6ec7ff))))
 
 (defn draw-world! [state]
-  (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.5)))
+  (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.05)))
         world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
     (cpp/b2World_Draw world-id (cpp/& debug))))
 

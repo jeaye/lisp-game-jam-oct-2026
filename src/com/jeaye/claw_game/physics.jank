@@ -383,9 +383,9 @@
                      claw-max-speed)]
     (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
 
-(defn drive-claw-hubs! [^(:* b2BodyId) central-hub-id
-                        axes]
-  (cpp/b2Body_SetLinearVelocity (cpp/* central-hub-id) axes))
+(defn drive-claw-carriage! [^(:* b2BodyId) carriage-id
+                            axes]
+  (cpp/b2Body_SetLinearVelocity (cpp/* carriage-id) axes))
 
 (comment
   (cpp/GetGamepadName 1)
@@ -401,14 +401,14 @@
         right-claw (-> (cpp/GetGamepadAxisMovement gamepad-index
                                                    cpp/GAMEPAD_AXIS_RIGHT_TRIGGER)
                        normalize-claw-tip-axis)
-        x (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_X)
-        y (- (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_Y))]
+        pos-x (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_X)
+        pos-y (- (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_Y))]
     ;(println :pos {:x x :y y})
     (drive-claw-tip! left-joint-id :left left-claw)
     (drive-claw-tip! right-joint-id :right right-claw)
     ; TODO: Deal with drift. Deadzone?
-    (drive-claw-hubs! carriage-id {:x x
-                                   :y y})))
+    (drive-claw-carriage! carriage-id {:x pos-x
+                                       :y pos-y})))
 
 (defn update-pieces! [state]
   (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))
