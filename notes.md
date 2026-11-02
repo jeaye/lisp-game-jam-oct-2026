@@ -11,7 +11,7 @@
     * Stars
     * Moon
     * Large shapes (each shape has variance)
-    * Long rectangles
+    * Long rectangles [x]
     * Compound shapes
   * Dump more pieces when the piece count gets low
   * Bad pieces?

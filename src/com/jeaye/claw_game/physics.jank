@@ -19,7 +19,8 @@
 (def wall-width 0.2)
 
 (def bucket-width (* world-width 0.3))
-(def bucket-height (* world-height 0.3))
+(def bucket-height 0.1)
+(def bucket-wall-height (* world-height 0.3))
 (def bucket-wall-width 0.1)
 
 (def claw-tip-offset 0.15)
@@ -43,10 +44,10 @@
 
 (defn create-playspace! [^(:* b2WorldId) world-id]
   (let [bucket-body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position bucket-body-def) (cpp/b2Vec2 (+ (/ world-width -2)
-                                                             (/ bucket-width 2))
-                                                          (+ (/ world-height -2)
-                                                             (/ bucket-height 2))))
+        _ (cpp/= (.-position bucket-body-def) (cpp/b2Vec2 (+ (/ world-width -2.0)
+                                                             (/ bucket-width 2.0))
+                                                          (+ (/ world-height -2.0)
+                                                             (/ bucket-height 2.0))))
         bucket-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bucket-body-def))
 
         bucket-box (cpp/b2MakeBox (/ bucket-width 2.0)
@@ -61,10 +62,10 @@
                                                                   bucket-width
                                                                   (/ bucket-wall-width 2))
                                                                (+ (/ world-height -2)
-                                                                  (/ bucket-height 2))))
+                                                                  (/ bucket-wall-height 2))))
         bucket-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bucket-wall-body-def))
 
-        bucket-wall-box (cpp/b2MakeBox (/ bucket-wall-width 2.0) (/ bucket-height 2.0))
+        bucket-wall-box (cpp/b2MakeBox (/ bucket-wall-width 2.0) (/ bucket-wall-height 2.0))
         bucket-wall-shape-def (cpp/b2DefaultShapeDef)
         _ (cpp/b2CreatePolygonShape bucket-wall-id (cpp/& bucket-wall-shape-def) (cpp/& bucket-wall-box))
 
