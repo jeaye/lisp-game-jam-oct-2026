@@ -28,6 +28,12 @@
 (def claw-track-gain 10.0)
 (def claw-max-speed 3.0)
 
+; Number of pieces of each shape to create.
+(def box-create-count 33)
+(def triangle-create-count 33)
+(def circle-create-count 33)
+(def rectangle-create-count 3)
+
 ; This controls the number of sub-steps that box2d does per tick.
 ; More sub-steps will result in more precision.
 (def sub-step-count 4)
@@ -103,35 +109,64 @@
         _ (cpp/b2CreatePolygonShape bottom-wall-id (cpp/& bottom-wall-shape-def) (cpp/& bottom-wall-box))]
     ))
 
+; TODO: make shape definitions more configurable
+; TODO: More shapes? Star?
+; TODO: reduce duplication with body creation
 (defn create-pieces! [^(:* b2WorldId) world-id]
-  (let [box (cpp/b2MakeBox 0.1 0.1)
-        triangle-points (#cpp (:array b2Vec2 3))
-        _ (do
-            (cpp/= (cpp/aget triangle-points 0) (cpp/b2Vec2 0.0 0.115470))
-            (cpp/= (cpp/aget triangle-points 1) (cpp/b2Vec2 -0.1 -0.057735))
-            (cpp/= (cpp/aget triangle-points 2) (cpp/b2Vec2 0.1 -0.057735)))
-        triangle-hull (cpp/b2ComputeHull triangle-points 3)
-        triangle (cpp/b2MakePolygon (cpp/& triangle-hull) 0.0)
-        circle (cpp/b2Circle (cpp/b2Vec2 0.0 0.0) 0.1)
-        ; TODO: More shapes? Star?
-        shape-def (cpp/b2DefaultShapeDef)
+  (let [shape-def (cpp/b2DefaultShapeDef)
         ; TODO: Mass.
         _ (cpp/= (.-enableSensorEvents shape-def) true)
         _ (cpp/= (.-density shape-def) 1.0)
         _ (cpp/= (.-friction (.-material shape-def)) 0.3)]
-    (dotimes [_ 100]
-      (let [body-def (cpp/b2DefaultBodyDef)
-            _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
-            _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
-                                                       (rand (/ world-height -2))))
-            body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-            body-type (rand-int 3)]
-        ; TODO: cannot use case here, causes compile error expecting same response type in each branch
-        (if (= 0 body-type)
-          (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& triangle))
-          (if (= 1 body-type)
-            (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box))
-            (cpp/b2CreateCircleShape body-id (cpp/& shape-def) (cpp/& circle))))))))
+
+    ; spawn boxes
+    (let [box (cpp/b2MakeBox 0.1 0.1)]
+      (dotimes [_ box-create-count]
+        (let [body-def (cpp/b2DefaultBodyDef)
+              _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+              _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
+                                                         (rand (/ world-height -2))))
+              body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
+          (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box)))))
+
+    ; spawn triangles
+    (let [triangle-points (#cpp (:array b2Vec2 3))
+          _ (do
+              (cpp/= (cpp/aget triangle-points 0) (cpp/b2Vec2 0.0 0.115470))
+              (cpp/= (cpp/aget triangle-points 1) (cpp/b2Vec2 -0.1 -0.057735))
+              (cpp/= (cpp/aget triangle-points 2) (cpp/b2Vec2 0.1 -0.057735)))
+          triangle-hull (cpp/b2ComputeHull triangle-points 3)
+          triangle (cpp/b2MakePolygon (cpp/& triangle-hull) 0.0)]
+      (dotimes [_ triangle-create-count]
+        (let [body-def (cpp/b2DefaultBodyDef)
+              _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+              _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
+                                                         (rand (/ world-height -2))))
+              body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
+          (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& triangle)))))
+
+    ; spawn circles
+    (let [circle (cpp/b2Circle (cpp/b2Vec2 0.0 0.0) 0.1)]
+      (dotimes [_ circle-create-count]
+        (let [body-def (cpp/b2DefaultBodyDef)
+              _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+              _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
+                                                         (rand (/ world-height -2))))
+              body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
+          (cpp/b2CreateCircleShape body-id (cpp/& shape-def) (cpp/& circle)))))
+
+    ; spawn rectangles
+    ; TODO: rectangles can spawn intersectting the walls
+    (let [rectangle (cpp/b2MakeBox 0.6 0.1)]
+      (dotimes [_ rectangle-create-count]
+        (let [body-def (cpp/b2DefaultBodyDef)
+              _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+              _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
+                                                         (rand (/ world-height -2))))
+              body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
+          (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& rectangle)))))
+
+    nil))
 
 (def claw-tip-points (let [third-length 0.3
                            half-third-length (/ third-length 2)

@@ -12,6 +12,7 @@
     * Moon
     * Large shapes (each shape has variance)
     * Long rectangles
+    * Compound shapes
   * Dump more pieces when the piece count gets low
   * Bad pieces?
     * Bombs that explode and destroy other pieces?

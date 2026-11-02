@@ -122,6 +122,8 @@
           (debug-collect-piece! {:type :square}))
         (when (cpp/IsKeyPressed cpp/KEY_THREE)
           (debug-collect-piece! {:type :circle}))
+        (when (cpp/IsKeyPressed cpp/KEY_FOUR)
+          (debug-collect-piece! {:type :rectangle}))
         (when (cpp/IsKeyPressed cpp/KEY_ZERO)
           (debug-collect-piece! {:type (:bonus-piece-type state)}))
 
