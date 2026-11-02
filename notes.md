@@ -2,6 +2,7 @@
 * Fun
   * [bryan] Scoring
   * [done] Claw rotation
+  * [done] Claw positional constraints
   * [jeaye] Controller vibrations
   * [jeaye] Thrust
     * Build up thrust bar based on scoring?
@@ -10,10 +11,11 @@
   * [bryan] Non-uniform pieces
     * Stars
     * Moon
-    * Large shapes (each shape has variance)
+    * [done] Large shapes (each shape has variance)
     * [done] Long rectangles
     * Compound shapes
-  * Dump more pieces when the piece count gets low
+  * [done] Dump more pieces when the piece count gets low
+    * Percentage change to spawn new piece
   * Bad pieces?
     * Bombs that explode and destroy other pieces?
       * Explodes after a certain amount of time
