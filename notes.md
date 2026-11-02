@@ -1,7 +1,7 @@
 ## TODO
 * Fun
   * [bryan] Scoring
-  * [jeaye] Claw rotation
+  * [done] Claw rotation
   * [jeaye] Controller vibrations
   * [jeaye] Thrust
     * Build up thrust bar based on scoring?
@@ -11,7 +11,7 @@
     * Stars
     * Moon
     * Large shapes (each shape has variance)
-    * Long rectangles [x]
+    * [done] Long rectangles
     * Compound shapes
   * Dump more pieces when the piece count gets low
   * Bad pieces?
