@@ -132,7 +132,8 @@
 
         (-> state
             physics/update!
-            update-time-remaining
+            ; TODO: restore update time
+            ; update-time-remaining
             update-combo-time-remaining))
 
       :game-over
