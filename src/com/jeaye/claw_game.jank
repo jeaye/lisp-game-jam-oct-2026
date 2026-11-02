@@ -57,39 +57,28 @@
   (swap! global-state (fn [state]
                         (bucket/on-collect state piece))))
 
+; TODO: remove bucket scoring debugging
+(cpp/raw "void* get_raw_object_ptr(jank::runtime::object_ref const o){ return o.raw(); }")
+(def debug-user-data {:piece-type :square})
+(defn debug-create-piece! [^(:* b2WorldId) world-id]
+  (let [box (cpp/b2MakeBox 0.1 0.1)
+        shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/= (.-enableSensorEvents shape-def) true)
+        _ (cpp/= (.-density shape-def) 1.0)
+        _ (cpp/= (.-friction (.-material shape-def)) 0.3)
+        body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+        _ (cpp/= (.-position body-def) (cpp/b2Vec2 0.0 0.0))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        shape-id (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box))]
+    (cpp/box (cpp/& shape-id))))
+(defn debug-set-user-data! [^(:* b2ShapeId) shape-id]
+  (let [void* (cpp/get_raw_object_ptr debug-user-data)
+        _ (cpp/b2Shape_SetUserData (cpp/* shape-id) void*)]
+    nil))
+
 (comment
   (restart-game!)
-
-  ;You can if you want. It just requires some jank c++ internals.
-  ;We'd want to store object_ref data in the box2d user data void*.
-  ;
-  ;That will allow us to get back to clojure data. You'll want the
-  ;.raw member of an erased jank object. Then you can cpp/unsafe-cast
-  ;it from void* back to jank::runtime::object* when you want.
-  ;
-  ;Call .erase first, then access .raw on it.
-
-  (defn create-piece! [^(:* b2WorldId) world-id]
-    (let [box (cpp/b2MakeBox 0.1 0.1)
-          shape-def (cpp/b2DefaultShapeDef)
-          _ (cpp/= (.-enableSensorEvents shape-def) true)
-          _ (cpp/= (.-density shape-def) 1.0)
-          _ (cpp/= (.-friction (.-material shape-def)) 0.3)
-          body-def (cpp/b2DefaultBodyDef)
-          _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
-          _ (cpp/= (.-position body-def) (cpp/b2Vec2 0.0 0.0))
-          body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
-      (cpp/box (cpp/& (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box))))))
-
-  (def debug-shape (atom nil))
-  (reset! debug-shape (create-piece! (get-in @global-state [:physics :world-id])))
-  (deref debug-shape)
-
-  (defn set-user-data [^(:* b2ShapeId) shape-id* m]
-    (let [void* (.raw (.erase m))
-          _ (cpp/b2Shape_SetUserData (cpp/* shape-id*) void*)]))
-  (set-user-data @debug-shape {:piece-type :square})
-
   (deref global-state))
 
 (defn update-time-remaining [state]
@@ -132,7 +121,14 @@
         (when (cpp/IsKeyPressed cpp/KEY_TWO)
           (debug-collect-piece! {:type :square}))
         (when (cpp/IsKeyPressed cpp/KEY_ZERO)
-          (debug-collect-piece! {:type (:bonus-piece-type @global-state)}))
+          (debug-collect-piece! {:type (:bonus-piece-type state)}))
+
+        ; TODO: remove bucket scoring debugging
+        (when (cpp/IsKeyPressed cpp/KEY_FIVE)
+          (let [world-id (get-in state [:physics :world-id])
+                shape-id (debug-create-piece! world-id)
+                _ (debug-set-user-data! shape-id)]
+            nil))
 
         (-> state
             physics/update!
