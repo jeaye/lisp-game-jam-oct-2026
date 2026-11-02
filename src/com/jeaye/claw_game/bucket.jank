@@ -1,9 +1,11 @@
 (ns com.jeaye.claw-game.bucket)
 
-; TODO: core game loop
-; - game modes/menus, transitions (main-menu, playing, paused, game-over)
-; - game over stats
-; - game pause
+; Score configuration.
+(def score-base 100) ; base score per piece
+(def bonus-score-multiplier 5) ; score multiplier for bonus piece
+(def bonus-time-added 10) ; seconds; time added per bonus piece scored
+(def combo-time 1) ; seconds; total time to count as an active combo, reset on each piece score
+(def combo-score-multiplier-added 0.5) ; combo score multiplier added per piece scored during an active combo
 
 (def piece-types [:triangle :square :circle])
 
@@ -17,8 +19,7 @@
   (rand-nth piece-types))
 
 (defn add-score [state piece]
-  (let [score 100 ; base piece score
-        score-multiplier 1 ; base score multiplier
+  (let [score score-base ; base piece score
 
         ; Bonus piece scoring. Bonus points, bonus time.
         ; TODO: consider requiring a new bonus shape type on re-select
@@ -29,15 +30,16 @@
               bonus-time-remaining 0}}
         (when (= (:bonus-piece-type state) (:type piece))
           {:bonus-piece-type (rand-bonus-piece-type) ; new bonus piece type
-           :bonus-score-multiplier 5 ; x base multiplier
-           :bonus-time-remaining 10}) ; + seconds
+           :bonus-score-multiplier bonus-score-multiplier ; x base multiplier
+           :bonus-time-remaining bonus-time-added}) ; + seconds
 
         ; Combo scoring. Extra multiplier applied to every score.
-        {:keys [combo-score-multiplier]} state
+        {:keys [combo-score-multiplier]
+         :or {combo-score-multiplier 1}}
+        state
 
-        score-multiplier (* score-multiplier
-                            bonus-score-multiplier
-                            combo-score-multiplier)
+        ; Apply combination of bonus and combo multipliers.
+        score-multiplier (*  combo-score-multiplier)
         score-total (* score score-multiplier)]
     (cond-> state
       true (update :score + score-total)
@@ -46,8 +48,8 @@
       (pos? bonus-time-remaining) (update :time-remaining + bonus-time-remaining)
       ; Combo scoring. Extra points for pieces scored in quick succession.
       ; Combo rewards are updated post-scoring, applied to the next piece scored.
-      true (assoc :combo-time-remaining 1) ; reset combo time, not additive
-      true (update :combo-score-multiplier + 0.5) ; increase multiplier with each score
+      true (assoc :combo-time-remaining combo-time) ; reset combo time, not additive
+      true (update :combo-score-multiplier + combo-score-multiplier-added) ; increase multiplier with each score
       true (update :combo-count inc))))
 
 ; TODO: call this on each piece collected by the bucket
