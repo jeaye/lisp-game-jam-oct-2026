@@ -19,16 +19,24 @@
 (def wall-width 0.2)
 
 (def bucket-width (* world-width 0.3))
-(def bucket-height 0.1)
+(def bucket-sensor-height 0.1)
 (def bucket-wall-height (* world-height 0.3))
 (def bucket-wall-width 0.1)
 
-(def claw-tip-offset 0.15)
-(def claw-max-open-angle (degrees-to-radians 90.0))
-(def claw-max-close-angle (degrees-to-radians -90.0))
+; How open/closed can the claw tips get?
+(def claw-tip-max-open-angle (degrees-to-radians 90.0))
+(def claw-tip-max-close-angle (degrees-to-radians -90.0))
+; How snappy is the claw tip open/close, following the left/right triggers?
+(def claw-tip-track-gain 12.0)
+(def claw-tip-max-speed 5.0)
+
+; How much can the claw rotate, in either direction, using the right stick?
 (def claw-max-rotation-angle (degrees-to-radians 45.0))
-(def claw-track-gain 10.0)
-(def claw-max-speed 3.0)
+; How snappy is the claw rotation, following the right stick?
+(def claw-carriage-track-gain 3.0)
+(def claw-carriage-rotation-max-speed 3.0)
+; How fast does the claw move, using the left stick?
+(def claw-carriage-max-speed 2.5)
 
 ; Number of pieces of each shape to create.
 (def box-create-count 20)
@@ -41,6 +49,10 @@
 ; More sub-steps will result in more precision.
 (def sub-step-count 4)
 
+; How much controller input away from zero should be ignored?
+; This manages stick drift.
+(def gamepad-deadzone 0.05)
+
 ; -----------------------------------------------------------------------------
 ; Creation
 
@@ -49,11 +61,11 @@
         _ (cpp/= (.-position bucket-body-def) (cpp/b2Vec2 (+ (/ world-width -2.0)
                                                              (/ bucket-width 2.0))
                                                           (+ (/ world-height -2.0)
-                                                             (/ bucket-height 2.0))))
+                                                             (/ bucket-sensor-height 2.0))))
         bucket-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bucket-body-def))
 
         bucket-box (cpp/b2MakeBox (/ bucket-width 2.0)
-                                  (/ bucket-height 2.0))
+                                  (/ bucket-sensor-height 2.0))
         bucket-shape-def (cpp/b2DefaultShapeDef)
         _ (cpp/= (.-isSensor bucket-shape-def) true)
         _ (cpp/= (.-enableSensorEvents bucket-shape-def) true)
@@ -319,13 +331,13 @@
 
         left-joint (create-claw-tip-joint! world-id
                                            central-hub-id left-tip
-                                           claw-max-close-angle
-                                           claw-max-open-angle
+                                           claw-tip-max-close-angle
+                                           claw-tip-max-open-angle
                                            :left)
         right-joint (create-claw-tip-joint! world-id
                                             central-hub-id right-tip
-                                            claw-max-close-angle
-                                            claw-max-open-angle
+                                            claw-tip-max-close-angle
+                                            claw-tip-max-open-angle
                                             :right)
         ]
     {:carriage-id carriage-id
@@ -353,8 +365,6 @@
 ; -----------------------------------------------------------------------------
 ; Updating
 
-(def gamepad-deadzone 0.05)
-
 ; raylib gives us a gamepad axis of -1.0 (fully released) to 1.0 (fully pressed).
 ; We want to normalize that to a range of 0.0 and 1.0.
 (defn normalize-claw-tip-axis [axis]
@@ -379,12 +389,12 @@
 
 (defn drive-claw-tip! [^(:* b2JointId) joint-id side axis]
   (let [target (if (= :left side)
-                 (lerp axis claw-max-close-angle 0.0)
-                 (- claw-max-open-angle (lerp axis 0.0 claw-max-open-angle)))
+                 (lerp axis claw-tip-max-close-angle 0.0)
+                 (- claw-tip-max-open-angle (lerp axis 0.0 claw-tip-max-open-angle)))
         current (cpp/b2RevoluteJoint_GetAngle (cpp/* joint-id))
-        speed (clamp (* claw-track-gain (- target current))
-                     (- claw-max-speed)
-                     claw-max-speed)]
+        speed (clamp (* claw-tip-track-gain (- target current))
+                     (- claw-tip-max-speed)
+                     claw-tip-max-speed)]
     (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
 
 (defn drive-claw-rotation! [^(:* b2JointId) joint-id axis]
@@ -392,9 +402,9 @@
                  (lerp axis 0.0 (- claw-max-rotation-angle))
                  (lerp axis 0.0 claw-max-rotation-angle))
         current (cpp/b2RevoluteJoint_GetAngle (cpp/* joint-id))
-        speed (clamp (* claw-track-gain (- target current))
-                     (- claw-max-speed)
-                     claw-max-speed)]
+        speed (clamp (* claw-carriage-track-gain (- target current))
+                     (- claw-carriage-rotation-max-speed)
+                     claw-carriage-rotation-max-speed)]
     (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
 
 (defn drive-claw-carriage! [^(:* b2BodyId) carriage-id
@@ -413,16 +423,24 @@
                                                         cpp/GAMEPAD_AXIS_RIGHT_TRIGGER)
                             normalize-claw-tip-axis)
         rotation-axis (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_RIGHT_X)
+        rotation-axis (if (<= (abs rotation-axis) gamepad-deadzone)
+                        0.0
+                        rotation-axis)
         pos-x (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_X)
-        pos-y (- (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_Y))]
+        pos-y (- (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_Y))
+        pos-axes (cond-> {:x (* pos-x claw-carriage-max-speed)
+                          :y (* pos-y claw-carriage-max-speed)}
+                   ; Manage stick drift.
+                   (<= (abs pos-x) gamepad-deadzone)
+                   (assoc :x 0)
+                   (<= (abs pos-y) gamepad-deadzone)
+                   (assoc :y 0))]
     ;(println :pos {:x x :y y})
     ;(println :rotation-axis rotation-axis)
     (drive-claw-tip! left-joint-id :left left-claw-axis)
     (drive-claw-tip! right-joint-id :right right-claw-axis)
     (drive-claw-rotation! central-hub-joint-id rotation-axis)
-    ; TODO: Deal with drift. Deadzone?
-    (drive-claw-carriage! carriage-id {:x pos-x
-                                       :y pos-y})))
+    (drive-claw-carriage! carriage-id pos-axes)))
 
 (defn update-pieces! [state]
   (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))
