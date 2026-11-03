@@ -1,12 +1,12 @@
 ## TODO
 * Fun
-  * [bryan] Scoring
+  * [done] Scoring
   * [done] Claw rotation
   * [done] Claw positional constraints
   * [jeaye] Controller vibrations
   * [jeaye] Thrust
     * Build up thrust bar based on scoring?
-  * [bryan] Bonus piece, rather than type
+  * [done] Bonus piece, rather than type
     * Bonus shouldn't be something you get without trying
   * [bryan] Non-uniform pieces
     * Stars
