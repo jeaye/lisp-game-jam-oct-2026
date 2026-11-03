@@ -64,7 +64,6 @@
 
 ; TODO: remove bucket scoring debugging
 (cpp/raw "void* get_raw_object_ptr(jank::runtime::object_ref const o){ return o.raw(); }")
-(def debug-user-data {:piece-type :square})
 (defn debug-create-piece! [^(:* b2WorldId) world-id]
   (let [box (cpp/b2MakeBox 0.1 0.1)
         shape-def (cpp/b2DefaultShapeDef)
@@ -75,15 +74,43 @@
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/b2Vec2 0.0 0.0))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        shape-id (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box))]
-    (cpp/box (cpp/new b2ShapeId shape-id))))
-(defn debug-set-user-data! [^(:* b2ShapeId) shape-id]
-  (let [void* (cpp/get_raw_object_ptr debug-user-data)
-        _ (cpp/b2Shape_SetUserData (cpp/* shape-id) void*)]
-    nil))
+        _ (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box))]
+    (cpp/box (cpp/new b2BodyId body-id))))
+(def debug-user-data {:type :square})
+(defn debug-set-user-data! [^(:* b2BodyId) body-id]
+  (->> (cpp/get_raw_object_ptr debug-user-data)
+       (cpp/b2Body_SetUserData (cpp/* body-id)))
+  nil)
+(def debug-piece (atom nil))
+(deref debug-piece)
 
 (comment
   (restart-game!)
+
+  (let [world-id (get-in @global-state [:physics :world-id])
+        body-id (debug-create-piece! world-id)
+        _ (reset! debug-piece {:body-id body-id})
+        _ (debug-set-user-data! body-id)]
+    nil)
+
+  (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) (:body-id @debug-piece)))
+
+        a (cpp/b2Body_GetUserData body-id) ; => void*
+
+        ;b (cpp/unsafe-cast (:* jank.runtime.object) a)
+        ;=> jank/clojure/core.jank:3515:16: error:
+        ; no matching conversion for C-style cast from 'void *' to 'jank::runtime::object_ref'
+        ; (aka 'oref<object>')
+
+        b (cpp/unsafe-cast (:* jank.runtime.object_ref) a)
+        ; => jank::runtime::oref<jank::runtime::object> *const
+        c (cpp/* b)
+        ; => jank::runtime::object_ref
+        ; ==> terminated by signal SIGSEGV: invalid memory reference
+
+        ]
+    nil)
+
   (deref global-state))
 
 (defn update-time-remaining [state]

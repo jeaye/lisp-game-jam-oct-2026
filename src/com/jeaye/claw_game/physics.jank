@@ -547,17 +547,17 @@
         events (cpp/b2World_GetSensorEvents world-id)
         pieces-to-remove (transient [])]
     (dotimes [i (.-beginCount events)]
-      (let [shape-id (cpp/b2Shape_GetBody (.-visitorShapeId (cpp/aget (.-beginEvents events) i)))]
-        (when (cpp/b2Body_IsValid shape-id)
-          (conj! pieces-to-remove (cpp/box (cpp/new b2BodyId shape-id))))))
+      (let [body-id (cpp/b2Shape_GetBody (.-visitorShapeId (cpp/aget (.-beginEvents events) i)))]
+        (when (cpp/b2Body_IsValid body-id)
+          (conj! pieces-to-remove (cpp/box (cpp/new b2BodyId body-id))))))
     (if (empty? pieces-to-remove)
       state
       ; TODO: Do we need a queue for this?
       (update state :queue conj (fn [state]
                                   (doseq [piece (persistent! pieces-to-remove)]
-                                    (let [id (cpp/* (cpp/unbox (:* b2BodyId) piece))]
-                                      (when (cpp/b2Body_IsValid id)
-                                        (cpp/b2DestroyBody id)
+                                    (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) piece))]
+                                      (when (cpp/b2Body_IsValid body-id)
+                                        (cpp/b2DestroyBody body-id)
                                         (when (<= chance-to-spawn-piece-on-score (rand))
                                           (spawn-random-piece! (get-in state [:physics :world-id]))))))
                                   state)))))
