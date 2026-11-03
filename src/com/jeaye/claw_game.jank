@@ -94,8 +94,12 @@
     nil)
 
   (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) (:body-id @debug-piece)))
+        user-data-void* (cpp/b2Body_GetUserData body-id) ; => void*
+        ]
+    nil)
 
-        a (cpp/b2Body_GetUserData body-id) ; => void*
+  (let [m {:foo :bar}
+        a (cpp/get_raw_object_ptr m)
 
         ;b (cpp/unsafe-cast (:* jank.runtime.object) a)
         ;=> jank/clojure/core.jank:3515:16: error:
@@ -106,8 +110,8 @@
         ; => jank::runtime::oref<jank::runtime::object> *const
         c (cpp/* b)
         ; => jank::runtime::object_ref
+        _ (println c)
         ; ==> terminated by signal SIGSEGV: invalid memory reference
-
         ]
     nil)
 
