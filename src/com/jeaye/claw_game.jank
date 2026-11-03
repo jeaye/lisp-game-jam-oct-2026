@@ -58,11 +58,6 @@
                         (update state :queue conj (fn [state]
                                                     (start-game!))))))
 
-; Debug fn to replicate collecting a piece.
-(defn debug-collect-piece! [piece]
-  (swap! global-state (fn [state]
-                        (bucket/on-collect state piece))))
-
 (comment
   (restart-game!)
   (deref global-state))
@@ -102,16 +97,6 @@
         ; debug hotkeys
         (when (cpp/IsKeyPressed cpp/KEY_ENTER)
           (restart-game!))
-        (when (cpp/IsKeyPressed cpp/KEY_ONE)
-          (debug-collect-piece! {:type :triangle}))
-        (when (cpp/IsKeyPressed cpp/KEY_TWO)
-          (debug-collect-piece! {:type :square}))
-        (when (cpp/IsKeyPressed cpp/KEY_THREE)
-          (debug-collect-piece! {:type :circle}))
-        (when (cpp/IsKeyPressed cpp/KEY_FOUR)
-          (debug-collect-piece! {:type :rectangle}))
-        (when (cpp/IsKeyPressed cpp/KEY_ZERO)
-          (debug-collect-piece! {:type (:bonus-piece-type state)}))
 
         (-> state
             physics/update!
