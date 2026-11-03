@@ -145,7 +145,7 @@
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& box))]
-    {:type :square
+    {:type :box
      :body-id body-id}))
 
 (defn create-triangle-piece! [^(:* b2WorldId) world-id
@@ -265,7 +265,7 @@
              :y (/ world-height 2.0)}]
     (case (rand-nth bucket/piece-types)
       :triangle (create-triangle-piece! world-id shape-def-boxed pos)
-      :square (create-box-piece! world-id shape-def-boxed pos)
+      :box (create-box-piece! world-id shape-def-boxed pos)
       :circle (create-circle-piece! world-id shape-def-boxed pos)
       :rectangle (create-rectangle-piece! world-id shape-def-boxed pos)
       :capsule (create-capsule-piece! world-id shape-def-boxed pos))

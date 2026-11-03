@@ -7,8 +7,7 @@
 (def combo-time 1) ; seconds; total time to count as an active combo, reset on each piece score
 (def combo-score-multiplier-added 0.5) ; combo score multiplier added per piece scored during an active combo
 
-; TODO: rename :square -> :box to be consistent
-(def piece-types [:triangle :square :circle :rectangle :capsule])
+(def piece-types [:triangle :box :circle :rectangle :capsule])
 
 (comment
   ; Piece spec.
