@@ -9,28 +9,17 @@
 
 (def piece-types [:triangle :box :circle :rectangle :capsule])
 
-(comment
-  ; Piece spec.
-  ; TODO: add piece metadata in the phy object
-  {:type [:enum piece-types]}
-  )
-
-(defn rand-bonus-piece-type []
-  (rand-nth piece-types))
-
 (defn add-score [state piece]
   (let [score score-base ; base piece score
 
         ; Bonus piece scoring. Bonus points, bonus time.
         ; TODO: consider requiring a new bonus shape type on re-select
-        {:keys [bonus-piece-type
-                bonus-score-multiplier
+        {:keys [bonus-score-multiplier
                 bonus-time-remaining]
          :or {bonus-score-multiplier 1
               bonus-time-remaining 0}}
-        (when (= (:bonus-piece-type state) (:type piece))
-          {:bonus-piece-type (rand-bonus-piece-type) ; new bonus piece type
-           :bonus-score-multiplier bonus-score-multiplier ; x base multiplier
+        (when (:bonus? piece)
+          {:bonus-score-multiplier bonus-score-multiplier ; x base multiplier
            :bonus-time-remaining bonus-time-added}) ; + seconds
 
         ; Combo scoring. Extra multiplier applied to every score.
@@ -44,7 +33,6 @@
     (cond-> state
       true (update :score + score-total)
       ; Bonus piece scoring rewards, if applicable.
-      (some? bonus-piece-type) (assoc :bonus-piece-type bonus-piece-type)
       (pos? bonus-time-remaining) (update :time-remaining + bonus-time-remaining)
       ; Combo scoring. Extra points for pieces scored in quick succession.
       ; Combo rewards are updated post-scoring, applied to the next piece scored.

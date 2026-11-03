@@ -46,6 +46,7 @@
 (def capsule-create-count 10)
 (def rectangle-create-count 3)
 (def piece-max-size 2)
+(def bonus-piece-count 10)
 ; Percent chance to spawn a new piece when scoring. (0.4 == 40%)
 (def chance-to-spawn-piece-on-score 0.4)
 
@@ -248,6 +249,12 @@
     (dotimes [_ capsule-create-count]
       (->> (create-rectangle-piece! world-id shape-def-boxed (rand-pos))
            (vswap! pieces conj)))
+
+    ; select random pieces to be marked as bonus
+    ; TODO: prevent selecting the same piece multiple
+    (dotimes [_ bonus-piece-count]
+      (let [idx (rand-int (count @pieces))]
+        (vswap! pieces assoc-in [idx :bonus?] true)))
 
     (zipmap (map :body-id @pieces) @pieces)))
 
@@ -569,6 +576,7 @@
                                                       (cpp/b2DestroyBody body-id))
 
                                                   ; Chance to spawn a new piece to keep the bucket populated.
+                                                  ; TODO: consider random chance for new piece to become a bonus piece
                                                   state (if (<= chance-to-spawn-piece-on-score (rand))
                                                           (let [new-piece (spawn-random-piece! (get-in state [:physics :world-id]))]
                                                             (assoc-in state [:physics :pieces (:body-id new-piece)] new-piece))
