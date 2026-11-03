@@ -7,6 +7,7 @@
 (def combo-time 1) ; seconds; total time to count as an active combo, reset on each piece score
 (def combo-score-multiplier-added 0.5) ; combo score multiplier added per piece scored during an active combo
 
+; TODO: rename :square -> :box to be consistent
 (def piece-types [:triangle :square :circle :rectangle :capsule])
 
 (comment
@@ -52,7 +53,6 @@
       true (update :combo-score-multiplier + combo-score-multiplier-added) ; increase multiplier with each score
       true (update :combo-count inc))))
 
-; TODO: call this on each piece collected by the bucket
 (defn on-collect [state piece]
   (let [state (add-score state piece)]
     ; TODO: add end game metrics (scored, bonus, max combo, etc.)

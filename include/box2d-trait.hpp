@@ -27,4 +27,34 @@ namespace jank::runtime
       return b2Vec2(o.get(x).to_real(), o.get(y).to_real());
     }
   };
+
+  template <>
+  struct convert<b2BodyId>
+  {
+    static obj::persistent_array_map_ref into_object(b2BodyId const &v)
+    {
+      static auto const generation(__rt_ctx->intern_keyword("generation").expect_ok());
+      static auto const index1(__rt_ctx->intern_keyword("index1").expect_ok());
+      static auto const world0(__rt_ctx->intern_keyword("world0").expect_ok());
+
+      return obj::persistent_array_map::create_unique(
+        generation, make_box(v.generation),
+        index1, make_box(v.index1),
+        world0, make_box(v.world0)
+      );
+    }
+
+    static b2BodyId from_object(object_ref const o)
+    {
+      static auto const generation(__rt_ctx->intern_keyword("generation").expect_ok());
+      static auto const index1(__rt_ctx->intern_keyword("index1").expect_ok());
+      static auto const world0(__rt_ctx->intern_keyword("world0").expect_ok());
+
+      return b2BodyId(
+        o.get(generation).to_integer(),
+        o.get(index1).to_integer(),
+        o.get(world0).to_integer()
+      );
+    }
+  };
 }

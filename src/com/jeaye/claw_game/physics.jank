@@ -131,6 +131,10 @@
 (defn random-piece-size! []
   (+ 1.0 (rand (- piece-max-size 1))))
 
+(defn rand-pos []
+  {:x (rand (/ world-width 2))
+   :y (rand (/ world-height -2))})
+
 (defn create-box-piece! [^(:* b2WorldId) world-id
                          ^(:* b2ShapeDef) shape-def
                          pos]
@@ -139,9 +143,10 @@
         box (cpp/b2MakeBox (* 0.1 size) (* 0.1 size))
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
-        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
-    (cpp/b2CreatePolygonShape body-id shape-def (cpp/& box))
-    nil))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& box))]
+    {:type :square
+     :body-id body-id}))
 
 (defn create-triangle-piece! [^(:* b2WorldId) world-id
                               ^(:* b2ShapeDef) shape-def
@@ -159,9 +164,10 @@
         body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
-        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
-    (cpp/b2CreatePolygonShape body-id shape-def (cpp/& triangle))
-    nil))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& triangle))]
+    {:type :triangle
+     :body-id body-id}))
 
 (defn create-circle-piece! [^(:* b2WorldId) world-id
                             ^(:* b2ShapeDef) shape-def
@@ -172,9 +178,10 @@
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
                                                    (rand (/ world-height -2))))
-        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
-    (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))
-    nil))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))]
+    {:type :circle
+     :body-id body-id}))
 
 (defn create-capsule-piece! [^(:* b2WorldId) world-id
                              ^(:* b2ShapeDef) shape-def
@@ -186,9 +193,10 @@
         body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
-        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
-    (cpp/b2CreateCapsuleShape body-id shape-def (cpp/& capsule))
-    nil))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        _ (cpp/b2CreateCapsuleShape body-id shape-def (cpp/& capsule))]
+    {:type :capsule
+     :body-id body-id}))
 
 (defn create-rectangle-piece! [^(:* b2WorldId) world-id
                                ^(:* b2ShapeDef) shape-def
@@ -199,9 +207,10 @@
         body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
-        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
-    (cpp/b2CreatePolygonShape body-id shape-def (cpp/& rectangle))
-    nil))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& rectangle))]
+    {:type :rectangle
+     :body-id body-id}))
 
 ; TODO: make shape definitions more configurable
 ; TODO: More shapes? Star?
@@ -212,44 +221,35 @@
         _ (cpp/= (.-enableSensorEvents shape-def) true)
         _ (cpp/= (.-density shape-def) 1.0)
         _ (cpp/= (.-friction (.-material shape-def)) 0.3)
-        shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))]
+        shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))
+        pieces (volatile! [])]
 
     ; spawn boxes
     (dotimes [_ box-create-count]
-      (create-box-piece! world-id
-                         shape-def-boxed
-                         {:x (rand (/ world-width 2))
-                          :y (rand (/ world-height -2))}))
+      (->> (create-box-piece! world-id shape-def-boxed (rand-pos))
+           (vswap! pieces conj)))
 
     ; spawn triangles
     (dotimes [_ triangle-create-count]
-      (create-triangle-piece! world-id
-                              shape-def-boxed
-                              {:x (rand (/ world-width 2))
-                               :y (rand (/ world-height -2))}))
+      (->> (create-triangle-piece! world-id shape-def-boxed (rand-pos))
+           (vswap! pieces conj)))
 
     ; spawn circles
     (dotimes [_ circle-create-count]
-      (create-circle-piece! world-id
-                            shape-def-boxed
-                            {:x (rand (/ world-width 2))
-                             :y (rand (/ world-height -2))}))
+      (->> (create-circle-piece! world-id shape-def-boxed (rand-pos))
+           (vswap! pieces conj)))
 
     ; spawn capsules
-    (dotimes [_ circle-create-count]
-      (create-capsule-piece! world-id
-                             shape-def-boxed
-                             {:x (rand (/ world-width 2))
-                              :y (rand (/ world-height -2))}))
+    (dotimes [_ capsule-create-count]
+      (->> (create-capsule-piece! world-id shape-def-boxed (rand-pos))
+           (vswap! pieces conj)))
 
     ; spawn rectangles
-    (dotimes [_ rectangle-create-count]
-      (create-rectangle-piece! world-id
-                               shape-def-boxed
-                               {:x (rand (/ world-width 2))
-                                :y (rand (/ world-height -2))}))
+    (dotimes [_ capsule-create-count]
+      (->> (create-rectangle-piece! world-id shape-def-boxed (rand-pos))
+           (vswap! pieces conj)))
 
-    nil))
+    (zipmap (map :body-id @pieces) @pieces)))
 
 (defn spawn-random-piece! [world-id]
   ; TODO: Reuse this shape-def with create-pieces!
@@ -430,8 +430,8 @@
         world-id (cpp/b2CreateWorld (cpp/& world-def))
         world-id-box (cpp/box (cpp/new b2WorldId world-id))]
     (create-playspace! world-id-box)
-    (create-pieces! world-id-box)
     (assoc (create-claw! world-id-box)
+           :pieces (create-pieces! world-id-box)
            :world-id world-id-box)))
 
 (defn destroy-world! [id]
@@ -554,13 +554,28 @@
       state
       ; TODO: Do we need a queue for this?
       (update state :queue conj (fn [state]
-                                  (doseq [piece (persistent! pieces-to-remove)]
-                                    (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) piece))]
-                                      (when (cpp/b2Body_IsValid body-id)
-                                        (cpp/b2DestroyBody body-id)
-                                        (when (<= chance-to-spawn-piece-on-score (rand))
-                                          (spawn-random-piece! (get-in state [:physics :world-id]))))))
-                                  state)))))
+                                  (reduce (fn [state piece]
+                                            (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) piece))
+
+                                                  ; Score the piece in the bucket.
+                                                  piece-metadata (get-in state [:physics :pieces body-id])
+                                                  state (bucket/on-collect state piece-metadata)
+
+                                                  ; Remove the piece from the global state tracker.
+                                                  state (update-in state [:physics :pieces] dissoc body-id)
+
+                                                  ; Destroy the physics body for the piece.
+                                                  _ (when (cpp/b2Body_IsValid body-id)
+                                                      (cpp/b2DestroyBody body-id))
+
+                                                  ; Chance to spawn a new piece to keep the bucket populated.
+                                                  state (if (<= chance-to-spawn-piece-on-score (rand))
+                                                          (let [new-piece (spawn-random-piece! (get-in state [:physics :world-id]))]
+                                                            (assoc-in state [:physics :pieces (:body-id new-piece)] new-piece))
+                                                          state)]
+                                              state))
+                                          state
+                                          (persistent! pieces-to-remove)))))))
 
 (defn update! [state]
   (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))

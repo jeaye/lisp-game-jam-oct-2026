@@ -35,7 +35,8 @@
    :combo-score-multiplier 1
    :combo-count 0
 
-   ; :physics {:world-id ^(:* b2WorldId) _}
+   ; :physics {:world-id ^(:* b2WorldId) _
+   ;           :pieces {b2BodyId... {:type [:enum bucket/piece-types]}}}
 
    ; Box2D can't be changed from another thread, so if we want to re-create the world, we
    ; need to do it on the main thread. Since each REPL command runs off the main thread,
@@ -62,59 +63,8 @@
   (swap! global-state (fn [state]
                         (bucket/on-collect state piece))))
 
-; TODO: remove bucket scoring debugging
-(cpp/raw "void* get_raw_object_ptr(jank::runtime::object_ref const o){ return o.raw(); }")
-(defn debug-create-piece! [^(:* b2WorldId) world-id]
-  (let [box (cpp/b2MakeBox 0.1 0.1)
-        shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/= (.-enableSensorEvents shape-def) true)
-        _ (cpp/= (.-density shape-def) 1.0)
-        _ (cpp/= (.-friction (.-material shape-def)) 0.3)
-        body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
-        _ (cpp/= (.-position body-def) (cpp/b2Vec2 0.0 0.0))
-        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        _ (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box))]
-    (cpp/box (cpp/new b2BodyId body-id))))
-(def debug-user-data {:type :square})
-(defn debug-set-user-data! [^(:* b2BodyId) body-id]
-  (->> (cpp/get_raw_object_ptr debug-user-data)
-       (cpp/b2Body_SetUserData (cpp/* body-id)))
-  nil)
-(def debug-piece (atom nil))
-(deref debug-piece)
-
 (comment
   (restart-game!)
-
-  (let [world-id (get-in @global-state [:physics :world-id])
-        body-id (debug-create-piece! world-id)
-        _ (reset! debug-piece {:body-id body-id})
-        _ (debug-set-user-data! body-id)]
-    nil)
-
-  (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) (:body-id @debug-piece)))
-        user-data-void* (cpp/b2Body_GetUserData body-id) ; => void*
-        ]
-    nil)
-
-  (let [m {:foo :bar}
-        a (cpp/get_raw_object_ptr m)
-
-        ;b (cpp/unsafe-cast (:* jank.runtime.object) a)
-        ;=> jank/clojure/core.jank:3515:16: error:
-        ; no matching conversion for C-style cast from 'void *' to 'jank::runtime::object_ref'
-        ; (aka 'oref<object>')
-
-        b (cpp/unsafe-cast (:* jank.runtime.object_ref) a)
-        ; => jank::runtime::oref<jank::runtime::object> *const
-        c (cpp/* b)
-        ; => jank::runtime::object_ref
-        _ (println c)
-        ; ==> terminated by signal SIGSEGV: invalid memory reference
-        ]
-    nil)
-
   (deref global-state))
 
 (defn update-time-remaining [state]
@@ -162,13 +112,6 @@
           (debug-collect-piece! {:type :rectangle}))
         (when (cpp/IsKeyPressed cpp/KEY_ZERO)
           (debug-collect-piece! {:type (:bonus-piece-type state)}))
-
-        ; TODO: remove bucket scoring debugging
-        (when (cpp/IsKeyPressed cpp/KEY_FIVE)
-          (let [world-id (get-in state [:physics :world-id])
-                shape-id (debug-create-piece! world-id)
-                _ (debug-set-user-data! shape-id)]
-            nil))
 
         (-> state
             physics/update!
