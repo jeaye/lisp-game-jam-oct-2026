@@ -10,16 +10,23 @@
 (defn radians-to-degrees [rad]
   (* rad (/ 180.0 3.14159)))
 
+(defn clamp [n min max]
+  (if (< n min)
+    min
+    (if (< max n)
+      max
+      n)))
+
 ; The game world is 4 meters wide and 6 meters tall, to accomodate for box2d's
 ; physics which work well with moving objects from 0.1 meters to 10 meters.
 ; https://box2d.org/documentation/index.html#autotoc_md6
-(def world-width 4.0)
-(def world-height 6.0)
+(def world-width 16.0)
+(def world-height 9.0)
 (def world-gravity -3.0)
 
 (def wall-width 0.2)
 
-(def bucket-width (* world-width 0.3))
+(def bucket-width (clamp (* world-width 0.3) 0.2 2))
 (def bucket-sensor-height 0.1)
 (def bucket-wall-height (* world-height 0.3))
 (def bucket-wall-width 0.1)
@@ -40,13 +47,13 @@
 (def claw-carriage-max-speed 2.5)
 
 ; Number of pieces of each shape to create.
-(def box-create-count 20)
-(def triangle-create-count 20)
-(def circle-create-count 20)
-(def capsule-create-count 10)
-(def rectangle-create-count 3)
+(def box-create-count 200)
+(def triangle-create-count 200)
+(def circle-create-count 200)
+(def capsule-create-count 100)
+(def rectangle-create-count 30)
 (def piece-max-size 2)
-(def bonus-piece-count 10)
+(def bonus-piece-count 100)
 ; Percent chance to spawn a new piece when scoring. (0.4 == 40%)
 (def chance-to-spawn-piece-on-score 0.4)
 
@@ -470,13 +477,6 @@
       1.0
       :else
       t)))
-
-(defn clamp [n min max]
-  (if (< n min)
-    min
-    (if (< max n)
-      max
-      n)))
 
 (defn lerp [n min max]
   (+ min (* n (abs (- min max)))))
