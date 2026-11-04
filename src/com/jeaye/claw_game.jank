@@ -58,10 +58,6 @@
                         (update state :queue conj (fn [state]
                                                     (start-game!))))))
 
-(comment
-  (restart-game!)
-  (deref global-state))
-
 (defn update-time-remaining [state]
   (let [time-remaining (-> (:time-remaining state)
                            (- (cpp/GetFrameTime))
@@ -232,4 +228,6 @@
   (cpp/CloseWindow))
 
 (comment
-  (def fut (future (-main))))
+  (def fut (future (-main)))
+  (restart-game!)
+  (deref global-state))

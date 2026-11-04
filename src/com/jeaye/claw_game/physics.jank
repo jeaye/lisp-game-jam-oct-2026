@@ -37,6 +37,8 @@
 ; How snappy is the claw tip open/close, following the left/right triggers?
 (def claw-tip-track-gain 12.0)
 (def claw-tip-max-speed 5.0)
+(def claw-tip-density 1.0)
+(def claw-tip-friction 0.8)
 
 ; How much can the claw rotate, in either direction, using the right stick?
 (def claw-max-rotation-angle (degrees-to-radians 45.0))
@@ -45,6 +47,8 @@
 (def claw-carriage-rotation-max-speed 3.0)
 ; How fast does the claw move, using the left stick?
 (def claw-carriage-max-speed 2.5)
+(def claw-carriage-density 5.0)
+(def claw-carriage-friction 0.3)
 
 ; Number of pieces of each shape to create.
 (def box-create-count 200)
@@ -56,6 +60,9 @@
 (def bonus-piece-count 100)
 ; Percent chance to spawn a new piece when scoring. (0.4 == 40%)
 (def chance-to-spawn-piece-on-score 0.4)
+
+(def piece-density 0.3)
+(def piece-friction 0.4)
 
 ; This controls the number of sub-steps that box2d does per tick.
 ; More sub-steps will result in more precision.
@@ -232,8 +239,8 @@
   (let [shape-def (cpp/b2DefaultShapeDef)
         ; TODO: Mass.
         _ (cpp/= (.-enableSensorEvents shape-def) true)
-        _ (cpp/= (.-density shape-def) 1.0)
-        _ (cpp/= (.-friction (.-material shape-def)) 0.3)
+        _ (cpp/= (.-density shape-def) piece-density)
+        _ (cpp/= (.-friction (.-material shape-def)) piece-friction)
         _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:piece filters)))
         shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))
         pieces (volatile! [])]
@@ -276,8 +283,8 @@
   (let [shape-def (cpp/b2DefaultShapeDef)
         ; TODO: Mass.
         _ (cpp/= (.-enableSensorEvents shape-def) true)
-        _ (cpp/= (.-density shape-def) 1.0)
-        _ (cpp/= (.-friction (.-material shape-def)) 0.3)
+        _ (cpp/= (.-density shape-def) piece-density)
+        _ (cpp/= (.-friction (.-material shape-def)) piece-friction)
         _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:piece filters)))
         shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))
         pos {:x (+ (- (rand (- world-width bucket-width))
@@ -316,8 +323,8 @@
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/= (.-density shape-def) 1.0)
-        _ (cpp/= (.-friction (.-material shape-def)) 0.8)
+        _ (cpp/= (.-density shape-def) claw-tip-density)
+        _ (cpp/= (.-friction (.-material shape-def)) claw-tip-friction)
         _ (cpp/= (.-restitution (.-material shape-def)) 0.0)
         _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:claw-tip filters)))
         _ (cpp/= (.-maskBits (.-filter shape-def)) (:piece filters))
@@ -412,6 +419,8 @@
         central-hub-id (cpp/b2CreateBody (cpp/* world-id*) (cpp/& central-hub-def))
         central-hub-id-boxed (cpp/box (cpp/new b2BodyId central-hub-id))
         central-hub-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/= (.-density central-hub-shape-def) claw-carriage-density)
+        _ (cpp/= (.-friction (.-material central-hub-shape-def)) claw-carriage-friction)
         _ (cpp/= (.-categoryBits (.-filter central-hub-shape-def)) (int (:claw-carriage filters)))
         central-hub-box (cpp/b2MakeBox 0.3 0.1)
         _ (cpp/b2CreatePolygonShape central-hub-id (cpp/& central-hub-shape-def) (cpp/& central-hub-box))
