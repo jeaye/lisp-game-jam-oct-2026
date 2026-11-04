@@ -3,6 +3,7 @@
   * [done] Scoring
   * [done] Claw rotation
   * [done] Claw positional constraints
+  * [done] Prevent claw self-collision
   * [jeaye] Controller vibrations
   * [jeaye] Thrust
     * Build up thrust bar based on scoring?

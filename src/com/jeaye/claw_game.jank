@@ -197,8 +197,8 @@
       (log-error! "render exception"))))
 
 (defn -main [& args]
-  #_(cpp/InitWindow 720 1080 "janky claw")
-  (cpp/InitWindow 460 720 "janky claw")
+  (cpp/InitWindow 720 1080 "janky claw")
+  #_(cpp/InitWindow 460 720 "janky claw")
   (cpp/SetTargetFPS 60)
   ; TODO: restore?
   ; (cpp/HideCursor)

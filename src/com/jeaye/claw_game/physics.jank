@@ -54,6 +54,11 @@
 ; More sub-steps will result in more precision.
 (def sub-step-count 8)
 
+(def filters {:piece 2r000000001
+              :wall 2r000000010
+              :claw-carriage 2r000000100
+              :claw-tip 2r000001000})
+
 ; How much controller input away from zero should be ignored?
 ; This manages stick drift.
 (def gamepad-deadzone 0.05)
@@ -222,6 +227,7 @@
         _ (cpp/= (.-enableSensorEvents shape-def) true)
         _ (cpp/= (.-density shape-def) 1.0)
         _ (cpp/= (.-friction (.-material shape-def)) 0.3)
+        _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:piece filters)))
         shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))
         pieces (volatile! [])]
 
@@ -265,6 +271,7 @@
         _ (cpp/= (.-enableSensorEvents shape-def) true)
         _ (cpp/= (.-density shape-def) 1.0)
         _ (cpp/= (.-friction (.-material shape-def)) 0.3)
+        _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:piece filters)))
         shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))
         pos {:x (+ (- (rand (- world-width bucket-width))
                       (/ world-width 2.0))
@@ -305,6 +312,8 @@
         _ (cpp/= (.-density shape-def) 1.0)
         _ (cpp/= (.-friction (.-material shape-def)) 0.8)
         _ (cpp/= (.-restitution (.-material shape-def)) 0.0)
+        _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:claw-tip filters)))
+        _ (cpp/= (.-maskBits (.-filter shape-def)) (:piece filters))
         tip-radius 0.05]
     (dotimes [i 3]
       (let [capsule (cpp/b2Capsule (nth (get claw-tip-points side) i)
@@ -386,6 +395,7 @@
         carriage-id (cpp/b2CreateBody (cpp/* world-id*) (cpp/& carriage-def))
         carriage-id-boxed (cpp/box (cpp/new b2BodyId carriage-id))
         carriage-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/= (.-categoryBits (.-filter carriage-shape-def)) (int (:claw-carriage filters)))
         _ (cpp/b2CreatePolygonShape carriage-id (cpp/& carriage-shape-def) (cpp/& hub-box))
 
         central-hub-pos {:x 0.0 :y (- (/ world-height 2) 0.5)}
@@ -395,6 +405,7 @@
         central-hub-id (cpp/b2CreateBody (cpp/* world-id*) (cpp/& central-hub-def))
         central-hub-id-boxed (cpp/box (cpp/new b2BodyId central-hub-id))
         central-hub-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/= (.-categoryBits (.-filter central-hub-shape-def)) (int (:claw-carriage filters)))
         central-hub-box (cpp/b2MakeBox 0.3 0.1)
         _ (cpp/b2CreatePolygonShape central-hub-id (cpp/& central-hub-shape-def) (cpp/& central-hub-box))
 
