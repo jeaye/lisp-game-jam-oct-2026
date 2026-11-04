@@ -1,0 +1,67 @@
+(ns com.jeaye.claw-game.graphics
+  (:include "raylib.h"
+            "box2d/box2d.h"
+            "box2d_draw.h"
+            "box2d-trait.hpp")
+  (:require [com.jeaye.claw-game.physics :as physics]
+            [com.jeaye.claw-game.gamepad :as gamepad]))
+
+(def base-font-size 20)
+(def title-font-size (* base-font-size 2))
+(def header-font-size (int (* base-font-size 1.5)))
+(def body-font-size base-font-size)
+
+(defn render-centered-text! [msg font-size y-offset]
+  (let [width (cpp/GetScreenWidth)
+        height (cpp/GetScreenHeight)
+        length (cpp/MeasureText msg font-size)]
+    (cpp/DrawText msg
+                  (- (/ width 2) (/ length 2))
+                  (+ (/ height 2) y-offset)
+                  font-size
+                  (cpp/GetColor 0xff6ec7ff))))
+
+(defn render-world! [state]
+  (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.05)))
+        world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
+    (cpp/b2World_Draw world-id (cpp/& debug))))
+
+(defn render-ui! [state]
+  (when (= :game-over (:mode state))
+    ; TODO: add complete game over stats
+    ; TODO: add better formatting and styling
+    ; TODO: Use relative positions, by screen size, rather than absolute
+    (cpp/DrawRectangle 145 200 430 140 cpp/MAGENTA)
+    (cpp/DrawRectangle 150 205 420 130 cpp/BLACK)
+    (cpp/DrawText "GAME OVER" 160 215 header-font-size cpp/MAGENTA)
+    (cpp/DrawText (format "SCORE: {}" (:score state)) 160 250 body-font-size cpp/MAGENTA)
+    (cpp/DrawText (format "PRESS THE {} BUTTON TO RESTART" (gamepad/get-accept-button-name))
+                  160 305 body-font-size cpp/MAGENTA))
+
+  ; debug
+  (cpp/DrawText (clojure.string/replace
+                  (select-keys state [:score
+                                      :time-remaining
+                                      :combo-time-remaining
+                                      :combo-score-multiplier
+                                      :combo-count
+                                      :mode])
+                  #"," ",\n")
+                150 10 body-font-size cpp/MAGENTA))
+
+(defn render! [state]
+  (case (:mode state)
+    :gamepad-selection
+    (do
+      (let [msg (format "PRESS THE {} BUTTON" (gamepad/get-accept-button-name))]
+        (render-centered-text! msg title-font-size 0)
+        (render-centered-text! "ON YOUR CONTROLLER" title-font-size title-font-size)
+        (render-centered-text! "TO BEGIN" title-font-size (* 2 title-font-size))))
+
+    (:playing :game-over)
+    (do
+      (render-world! state)
+      (render-ui! state))
+
+    ; :else
+    nil))
