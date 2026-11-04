@@ -21,10 +21,27 @@
                   font-size
                   (cpp/GetColor 0xff6ec7ff))))
 
-(defn render-world! [state]
+(defn render-debug-world! [state]
   (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.05)))
         world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
     (cpp/b2World_Draw world-id (cpp/& debug))))
+
+(defn render-world! [state]
+  #_(render-debug-world! state)
+  (doseq [[body-id piece] (get-in state [:physics :pieces])]
+    (prn :body-id body-id)
+    (let [pos (cpp/b2Body_GetPosition body-id)]
+      #_(case (:type piece)
+      :triangle nil
+
+      :box nil
+
+      :circle nil
+
+      :rectangle
+      (cpp/DrawRectangle (.-x pos) (.-y pos) 430 140 cpp/MAGENTA)
+
+      :capsule nil))))
 
 (defn render-ui! [state]
   (when (= :game-over (:mode state))

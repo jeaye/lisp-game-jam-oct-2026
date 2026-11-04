@@ -585,11 +585,11 @@
                                             (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) piece))
 
                                                   ; Score the piece in the bucket.
-                                                  piece-metadata (get-in state [:physics :pieces body-id])
+                                                  piece-metadata (get-in state [:physics :pieces piece])
                                                   state (bucket/on-collect state piece-metadata)
 
                                                   ; Remove the piece from the global state tracker.
-                                                  state (update-in state [:physics :pieces] dissoc body-id)
+                                                  state (update-in state [:physics :pieces] dissoc piece)
 
                                                   ; Destroy the physics body for the piece.
                                                   _ (when (cpp/b2Body_IsValid body-id)
