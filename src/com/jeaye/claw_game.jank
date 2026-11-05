@@ -112,11 +112,11 @@
         ()))
 
     (cond-> state
-        true gamepad/update-gamepad-index
-        true physics/update!
-        (= :playing (:mode state)) update-time-remaining
-        (= :playing (:mode state)) update-combo-time-remaining
-        (= :countdown (:mode state)) update-countdown-time-remaining)
+      true gamepad/update-gamepad-index
+      true physics/update!
+      (= :playing (:mode state)) update-time-remaining
+      (= :playing (:mode state)) update-combo-time-remaining
+      (= :countdown (:mode state)) update-countdown-time-remaining)
 
     (catch jank.runtime.object_ref e
       (log-error! (str "update exception: " (prn e)))
