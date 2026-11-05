@@ -19,6 +19,7 @@
     (println e)
     (reset! last-error e)))
 
+; TODO: cleanup state transition, too spread out right now
 (defn reset-state! [state]
   (physics/destroy-world! (get-in state [:physics :world-id]))
   {:mode :coin-drop ; :coin-drop, :countdown, :playing, :paused, :game-over
@@ -28,10 +29,11 @@
    :gamepad-index -1
 
    :score 0
-   :time-remaining 60 ; seconds
+   :time-remaining 0 ; seconds
    :combo-time-remaining 0 ; seconds
    :combo-score-multiplier 1
    :combo-count 0
+   :countdown-time-remaining 0 ; seconds
 
    ; :physics {:world-id ^(:* b2WorldId) _
    ;           :pieces {b2BodyId*... {:type [:enum bucket/piece-types]
@@ -71,50 +73,51 @@
       (zero? time-remaining) (assoc :combo-score-multiplier 1
                                     :combo-count 0))))
 
+(defn update-countdown-time-remaining [state]
+  (let [time-remaining (-> (:countdown-time-remaining state)
+                           (- (cpp/GetFrameTime))
+                           (max 0))
+        state (assoc state :countdown-time-remaining time-remaining)
+        state (if (zero? time-remaining)
+                ; Countdown timer complete. Spawn the pieces. Start the game.
+                (let [world-id (get-in state [:physics :world-id])
+                      pieces (physics/create-pieces! world-id)
+                      pieces-map (zipmap (map :body-id pieces) pieces)]
+                  (-> state
+                      (update-in [:physics :pieces] merge pieces-map)
+                      (assoc :mode :playing
+                             :time-remaining 60)))
+                state)]
+    state))
+
+(defn update-paused [state]
+  (when (cpp/IsKeyPressed cpp/KEY_P)
+    (case (:mode state)
+      :playing (assoc state :mode :paused)
+      :paused (assoc state :mode :playing)
+      state)))
+
 (defn update-game [state]
   (try
     ; debug hotkeys
     (when (cpp/IsKeyPressed cpp/KEY_ENTER)
       (restart-game!))
 
-    (-> state
-        gamepad/update-gamepad-index
-        physics/update!
-        ; TODO: restore update time
-        ; update-time-remaining
-        update-combo-time-remaining)
+    (when (and (= (:mode state) :game-over)
+               (gamepad/is-accept-button-pressed (:gamepad-index state)))
+      (restart-game!))
 
-    #_(case (:mode state)
-      :gamepad-selection
-      (let [id (gamepad/find-gamepad-index)]
-        (if (<= 0 id)
-          (assoc (start-playing! state)
-                 :gamepad-index id)
-          state))
+    (when (= (:mode state) :playing)
+      (when (cpp/IsKeyPressed cpp/KEY_P)
+        ()))
 
-      :playing
-      (do
-        ; debug hotkeys
-        (when (cpp/IsKeyPressed cpp/KEY_ENTER)
-          (restart-game!))
+    (cond-> state
+        true gamepad/update-gamepad-index
+        true physics/update!
+        (= :playing (:mode state)) update-time-remaining
+        (= :playing (:mode state)) update-combo-time-remaining
+        (= :countdown (:mode state)) update-countdown-time-remaining)
 
-        (-> state
-            physics/update!
-            ; TODO: restore update time
-            ; update-time-remaining
-            update-combo-time-remaining))
-
-      :game-over
-      (do
-        ; Restart the game on accept button pressed.
-        (when (gamepad/is-accept-button-pressed (:gamepad-index state))
-          ; TODO: This requires pressing X twice. Let's jump right into :playing instead.
-          (restart-game!))
-
-        state)
-
-      ; :else
-      state)
     (catch jank.runtime.object_ref e
       (log-error! (str "update exception: " (prn e)))
       state)
@@ -183,5 +186,4 @@
 (comment
   (def fut (future (-main)))
   (restart-game!)
-  (count (get-in @global-state [:physics :pieces]))
   (deref global-state))

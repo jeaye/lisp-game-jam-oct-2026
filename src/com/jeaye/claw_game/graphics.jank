@@ -10,6 +10,7 @@
 (def title-font-size (* base-font-size 2))
 (def header-font-size (int (* base-font-size 1.5)))
 (def body-font-size base-font-size)
+(def countdown-font-size (* title-font-size 3))
 
 (defn render-centered-text! [msg font-size y-offset]
   (let [width (cpp/GetScreenWidth)
@@ -75,7 +76,7 @@
                                     cpp/MAGENTA))
 
 
-            :circle
+            (:circle :token)
             (let [radius (world-to-screen-size (* physics/base-circle-size
                                                   (:size-multiplier piece)))]
               (cpp/DrawCircle (int (:x screen-pos))
@@ -123,8 +124,12 @@
                               radius
                               cpp/MAGENTA))))))))
 
+(defn ceil [x]
+  (let [n (long x)]
+    (if (> x n) (inc n) n)))
+
 (defn render-ui! [state]
-  #_(when (= :game-over (:mode state))
+  (when (= :game-over (:mode state))
     ; TODO: add complete game over stats
     ; TODO: add better formatting and styling
     ; TODO: Use relative positions, by screen size, rather than absolute
@@ -135,6 +140,10 @@
     (cpp/DrawText (format "PRESS THE {} BUTTON TO RESTART" (gamepad/get-accept-button-name))
                   160 305 body-font-size cpp/MAGENTA))
 
+  (when (= :countdown (:mode state))
+    (let [time-remaining (ceil (:countdown-time-remaining state))]
+      (render-centered-text! (str time-remaining) countdown-font-size 0)))
+
   ; debug
   (cpp/DrawText (clojure.string/replace
                   (select-keys state [:score
@@ -143,6 +152,7 @@
                                       #_:combo-score-multiplier
                                       #_:combo-count
                                       #_:gamepad-index
+                                      :countdown-time-remaining
                                       :mode])
                   #"," ",\n")
                 150 10 body-font-size cpp/MAGENTA))
@@ -150,20 +160,4 @@
 (defn render! [state]
   (render-world! state)
   (render-ui! state)
-  nil
-
-  #_(case (:mode state)
-    :gamepad-selection
-    (do
-      (let [msg (format "PRESS THE {} BUTTON" (gamepad/get-accept-button-name))]
-        (render-centered-text! msg title-font-size 0)
-        (render-centered-text! "ON YOUR CONTROLLER" title-font-size title-font-size)
-        (render-centered-text! "TO BEGIN" title-font-size (* 2 title-font-size))))
-
-    (:playing :game-over)
-    (do
-      (render-world! state)
-      (render-ui! state))
-
-    ; :else
-    nil))
+  nil)

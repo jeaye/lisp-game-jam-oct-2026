@@ -65,7 +65,7 @@
 (def rectangle-create-count 30)
 (def token-size 5)
 (def piece-max-size 2)
-(def bonus-piece-count 100)
+(def bonus-piece-count 10)
 ; Percent chance to spawn a new piece when scoring. (0.4 == 40%)
 (def chance-to-spawn-piece-on-score 0.4)
 
@@ -640,13 +640,8 @@
                   (case (:type piece)
                     ; Token score. Start the game.
                     :token
-                    (let [pieces (create-pieces! world-id-box)]
-                      (-> state
-                          (update-in [:physics :pieces]
-                                     merge
-                                     (zipmap (map :body-id pieces) pieces))
-                          ; TODO: add countdown
-                          (assoc :mode :playing)))
+                    (assoc state :mode :countdown
+                                 :countdown-time-remaining 3)
 
                     ; Standard piece type.
                     (let [; Score the piece in the bucket.
