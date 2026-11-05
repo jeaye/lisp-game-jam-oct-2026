@@ -116,7 +116,6 @@
                                                    width
                                                    height)
                                     (cpp/Vector2 (/ width 2.0) (/ height 2.0))
-                                    ; TODO: I don't know why this is needed.
                                     (- degrees 45.0)
                                     cpp/MAGENTA)
               (cpp/DrawCircle (int (:x circle-b-screen-pos))
