@@ -121,7 +121,7 @@
               (cpp/DrawCircle (int (:x circle-b-screen-pos))
                               (int (:y circle-b-screen-pos))
                               radius
-                              cpp/MAGENTA)))))))))
+                              cpp/MAGENTA))))))))
 
 (defn render-ui! [state]
   (when (= :game-over (:mode state))
