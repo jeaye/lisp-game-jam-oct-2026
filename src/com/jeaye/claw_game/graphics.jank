@@ -124,7 +124,7 @@
                               cpp/MAGENTA))))))))
 
 (defn render-ui! [state]
-  (when (= :game-over (:mode state))
+  #_(when (= :game-over (:mode state))
     ; TODO: add complete game over stats
     ; TODO: add better formatting and styling
     ; TODO: Use relative positions, by screen size, rather than absolute
@@ -139,15 +139,20 @@
   (cpp/DrawText (clojure.string/replace
                   (select-keys state [:score
                                       :time-remaining
-                                      :combo-time-remaining
-                                      :combo-score-multiplier
-                                      :combo-count
+                                      #_:combo-time-remaining
+                                      #_:combo-score-multiplier
+                                      #_:combo-count
+                                      #_:gamepad-index
                                       :mode])
                   #"," ",\n")
                 150 10 body-font-size cpp/MAGENTA))
 
 (defn render! [state]
-  (case (:mode state)
+  (render-world! state)
+  (render-ui! state)
+  nil
+
+  #_(case (:mode state)
     :gamepad-selection
     (do
       (let [msg (format "PRESS THE {} BUTTON" (gamepad/get-accept-button-name))]

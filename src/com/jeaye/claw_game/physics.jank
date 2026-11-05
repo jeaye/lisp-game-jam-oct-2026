@@ -2,7 +2,8 @@
   (:include "box2d/box2d.h"
             "raylib.h"
             "box2d-trait.hpp")
-  (:require [com.jeaye.claw-game.bucket :as bucket]))
+  (:require [com.jeaye.claw-game.bucket :as bucket]
+            [com.jeaye.claw-game.gamepad :as gamepad]))
 
 (defn degrees-to-radians [deg]
   (* deg (/ 3.14159 180.0)))
@@ -79,10 +80,6 @@
               :wall 2r000000010
               :claw-carriage 2r000000100
               :claw-tip 2r000001000})
-
-; How much controller input away from zero should be ignored?
-; This manages stick drift.
-(def gamepad-deadzone 0.05)
 
 ; -----------------------------------------------------------------------------
 ; Creation
@@ -476,7 +473,7 @@
         world-id-box (cpp/box (cpp/new b2WorldId world-id))]
     (create-playspace! world-id-box)
     (assoc (create-claw! world-id-box)
-           :pieces (create-pieces! world-id-box)
+           ;:pieces (create-pieces! world-id-box)
            :world-id world-id-box)))
 
 (defn destroy-world! [id]
@@ -491,9 +488,9 @@
 (defn normalize-claw-tip-axis [axis]
   (let [t (* (+ axis 1.0) 0.5)]
     (cond
-      (< t gamepad-deadzone)
+      (< t gamepad/deadzone)
       0.0
-      (< (- 1.0 gamepad-deadzone) t)
+      (< (- 1.0 gamepad/deadzone) t)
       1.0
       :else
       t)))
@@ -561,7 +558,7 @@
                                                         cpp/GAMEPAD_AXIS_RIGHT_TRIGGER)
                             normalize-claw-tip-axis)
         rotation-axis (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_RIGHT_X)
-        rotation-axis (if (<= (abs rotation-axis) gamepad-deadzone)
+        rotation-axis (if (<= (abs rotation-axis) gamepad/deadzone)
                         0.0
                         rotation-axis)
         pos-x (cpp/GetGamepadAxisMovement gamepad-index cpp/GAMEPAD_AXIS_LEFT_X)
@@ -569,9 +566,9 @@
         pos-axes (cond-> {:x (* pos-x claw-carriage-max-speed)
                           :y (* pos-y claw-carriage-max-speed)}
                    ; Manage stick drift.
-                   (<= (abs pos-x) gamepad-deadzone)
+                   (<= (abs pos-x) gamepad/deadzone)
                    (assoc :x 0)
-                   (<= (abs pos-y) gamepad-deadzone)
+                   (<= (abs pos-y) gamepad/deadzone)
                    (assoc :y 0))]
     ;(println :pos {:x x :y y})
     ;(println :rotation-axis rotation-axis)

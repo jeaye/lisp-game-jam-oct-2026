@@ -19,10 +19,13 @@
     (println e)
     (reset! last-error e)))
 
-; TODO: remove bang
-(defn start-game! []
-  {:mode :gamepad-selection ; :gamepad-selection, :playing, :game-over
-   :gamepad-index 0
+(defn reset-state! [state]
+  (physics/destroy-world! (get-in state [:physics :world-id]))
+  {:mode :coin-drop ; :coin-drop, :countdown, :playing, :paused, :game-over
+
+   ; Active gamepad index. When invalid, update loop searches each gamepad,
+   ; accepting the first gamepad with any input as the active gamepad index.
+   :gamepad-index -1
 
    :score 0
    :time-remaining 60 ; seconds
@@ -33,6 +36,7 @@
    ; :physics {:world-id ^(:* b2WorldId) _
    ;           :pieces {b2BodyId... {:type [:enum bucket/piece-types]
    ;                                 :bonus? :boolean}}}
+   :physics (physics/create-world!)
 
    ; Box2D can't be changed from another thread, so if we want to re-create the world, we
    ; need to do it on the main thread. Since each REPL command runs off the main thread,
@@ -42,17 +46,10 @@
    ; destroyed during the update loop.
    :queue []})
 
-(defn start-playing! [state]
-  (physics/destroy-world! (get-in state [:physics :world-id]))
-  (assoc state
-         :mode :playing
-         :physics (physics/create-world!)))
-
 ; This will restart the game in a thread-safe fashion.
 (defn restart-game! []
   (swap! global-state (fn [state]
-                        (update state :queue conj (fn [state]
-                                                    (start-game!))))))
+                        (update state :queue conj reset-state!))))
 
 (defn update-time-remaining [state]
   (let [time-remaining (-> (:time-remaining state)
@@ -76,7 +73,18 @@
 
 (defn update-game [state]
   (try
-    (case (:mode state)
+    ; debug hotkeys
+    (when (cpp/IsKeyPressed cpp/KEY_ENTER)
+      (restart-game!))
+
+    (-> state
+        gamepad/update-gamepad-index
+        physics/update!
+        ; TODO: restore update time
+        ; update-time-remaining
+        update-combo-time-remaining)
+
+    #_(case (:mode state)
       :gamepad-selection
       (let [id (gamepad/find-gamepad-index)]
         (if (<= 0 id)
@@ -138,13 +146,13 @@
       (log-error! "render exception"))))
 
 (defn -main [& args]
-  (cpp/InitWindow 1920 1080 "janky claw")
-  #_(cpp/InitWindow 460 720 "janky claw")
+  #_(cpp/InitWindow 1920 1080 "janky claw") ; 16:9
+  (cpp/InitWindow 960 540 "janky claw")
   (cpp/SetTargetFPS 60)
   ; TODO: restore?
   ; (cpp/HideCursor)
 
-  (reset! global-state (start-game!))
+  (swap! global-state reset-state!)
   (while (cpp/! (cpp/WindowShouldClose))
     (swap! global-state
            (fn [state]
@@ -175,4 +183,5 @@
 (comment
   (def fut (future (-main)))
   (restart-game!)
+  (swap! global-state dissoc :gamepad-index)
   (deref global-state))

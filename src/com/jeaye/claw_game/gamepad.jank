@@ -1,6 +1,10 @@
 (ns com.jeaye.claw-game.gamepad
   (:include "raylib.h"))
 
+; How much controller input away from zero should be ignored?
+; This manages stick drift.
+(def deadzone 0.05)
+
 ; When we prompt the user to press a button on their controller, we
 ; specifically want them to press the "accept" button. On PS controllers,
 ; that's X. On Xbox controllers, that's A. Otherwise, we call it A.
@@ -28,21 +32,32 @@
 (defn is-accept-button-pressed [index]
   (cpp/IsGamepadButtonPressed index cpp/GAMEPAD_BUTTON_RIGHT_FACE_DOWN))
 
-; Loops through all gamepads to see if any of them have pressed the "accept"
-; button. This corresponds with the `get-accept-button-name` button we
-; ask them to press. We return the index of the gamepad found so that way we
-; can use it for the rest of the game.
-(defn find-gamepad-index []
-  (loop [i 0]
-    (cond
-      (= 16 i)
-      -1
+(defn update-gamepad-index [state]
+  (if (cpp/IsGamepadAvailable (:gamepad-index state))
+    ; Gamepad index is active; nop.
+    state
 
-      (not (cpp/IsGamepadAvailable i))
-      (recur (inc i))
+    ; No active gamepad index. Search.
+    (let [gamepad-index (or (loop [gamepad-index 0]
+                              (cond
+                                ; MAX_GAMEPADS = 4
+                                ; https://github.com/raysan5/raylib/blob/master/src/config.h#L137
+                                (= 4 gamepad-index)
+                                nil
 
-      :else
-      (if (is-accept-button-pressed i)
-        i
-        (recur (inc i))))))
+                                (not (cpp/IsGamepadAvailable gamepad-index))
+                                (recur (inc gamepad-index))
+
+                                :else
+                                (when (or ; Accept any gamepad button pressed.
+                                          (some #(cpp/IsGamepadButtonPressed gamepad-index %)
+                                                ; https://github.com/raysan5/raylib/blob/master/src/raylib.h#L738
+                                                (range 18))
+                                          ; Accept any movement on the left or right stick.
+                                          (some #(< deadzone (abs (cpp/GetGamepadAxisMovement gamepad-index %)))
+                                                ; https://github.com/raysan5/raylib/blob/master/src/raylib.h#L760
+                                                (range 4)))
+                                  gamepad-index)))
+                            -1)]
+      (assoc state :gamepad-index gamepad-index))))
 
