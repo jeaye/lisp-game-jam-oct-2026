@@ -5,6 +5,8 @@
   (:require [com.jeaye.claw-game.bucket :as bucket]
             [com.jeaye.claw-game.gamepad :as gamepad]))
 
+(cpp/raw "bool b2BodyIdEquals(b2BodyId const a, b2BodyId const b){ return B2_ID_EQUALS(a, b); }")
+
 (defn degrees-to-radians [deg]
   (* deg (/ 3.14159 180.0)))
 
@@ -17,6 +19,9 @@
     (if (< max n)
       max
       n)))
+
+; Types of pieces that can be randomly spawned.
+(def random-piece-types [:triangle :box :circle :rectangle :capsule])
 
 ; The game world is 4 meters wide and 6 meters tall, to accomodate for box2d's
 ; physics which work well with moving objects from 0.1 meters to 10 meters.
@@ -58,6 +63,7 @@
 (def circle-create-count 200)
 (def capsule-create-count 100)
 (def rectangle-create-count 30)
+(def token-size 5)
 (def piece-max-size 2)
 (def bonus-piece-count 100)
 ; Percent chance to spawn a new piece when scoring. (0.4 == 40%)
@@ -210,6 +216,21 @@
      :size-multiplier size
      :body-id (cpp/box (cpp/new b2BodyId body-id))}))
 
+(defn create-token-piece! [^(:* b2WorldId) world-id
+                           ^(:* b2ShapeDef) shape-def
+                           pos]
+  (let [size token-size
+        circle (cpp/b2Circle (cpp/b2Vec2 0.0 0.0) (* base-circle-size size))
+        body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
+        _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
+                                                   (rand (/ world-height -2))))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))]
+    {:type :token
+     :size-multiplier size
+     :body-id (cpp/box (cpp/new b2BodyId body-id))}))
+
 (defn create-capsule-piece! [^(:* b2WorldId) world-id
                              ^(:* b2ShapeDef) shape-def
                              pos]
@@ -285,7 +306,7 @@
       (let [idx (rand-int (count @pieces))]
         (vswap! pieces assoc-in [idx :bonus?] true)))
 
-    (zipmap (map :body-id @pieces) @pieces)))
+    @pieces))
 
 (defn spawn-random-piece! [world-id]
   ; TODO: Reuse this shape-def with create-pieces!
@@ -300,7 +321,7 @@
                       (/ world-width 2.0))
                    bucket-width)
              :y (/ world-height 2.0)}]
-    (case (rand-nth bucket/piece-types)
+    (case (rand-nth random-piece-types)
       :triangle (create-triangle-piece! world-id shape-def-boxed pos)
       :box (create-box-piece! world-id shape-def-boxed pos)
       :circle (create-circle-piece! world-id shape-def-boxed pos)
@@ -466,14 +487,25 @@
      :right-tip-id right-tip
      :right-joint-id right-joint}))
 
+(defn create-token! [world-id]
+  (let [shape-def (cpp/b2DefaultShapeDef)
+        ; TODO: Mass.
+        _ (cpp/= (.-enableSensorEvents shape-def) true)
+        _ (cpp/= (.-density shape-def) piece-density)
+        _ (cpp/= (.-friction (.-material shape-def)) piece-friction)
+        _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:piece filters)))
+        shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))]
+    (create-token-piece! world-id shape-def-boxed (rand-pos))))
+
 (defn create-world! []
   (let [world-def (cpp/b2DefaultWorldDef)
         _ (cpp/= (.-gravity world-def) (cpp/b2Vec2 0.0 world-gravity))
         world-id (cpp/b2CreateWorld (cpp/& world-def))
-        world-id-box (cpp/box (cpp/new b2WorldId world-id))]
-    (create-playspace! world-id-box)
+        world-id-box (cpp/box (cpp/new b2WorldId world-id))
+        _ (create-playspace! world-id-box)
+        pieces [(create-token! world-id-box)]]
     (assoc (create-claw! world-id-box)
-           ;:pieces (create-pieces! world-id-box)
+           :pieces (zipmap (map :body-id pieces) pieces)
            :world-id world-id-box)))
 
 (defn destroy-world! [id]
@@ -578,7 +610,8 @@
     (drive-claw-carriage! carriage-id pos-axes)))
 
 (defn update-pieces! [state]
-  (let [world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))
+  (let [world-id-box (get-in state [:physics :world-id])
+        world-id (cpp/* (cpp/unbox (:* b2WorldId) world-id-box))
         events (cpp/b2World_GetSensorEvents world-id)
         pieces-to-remove (transient [])]
     (dotimes [i (.-beginCount events)]
@@ -587,27 +620,45 @@
           (conj! pieces-to-remove (cpp/box (cpp/new b2BodyId body-id))))))
     (if (empty? pieces-to-remove)
       state
-      (reduce (fn [state piece]
-                (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) piece))
+      (reduce (fn [state body-id*]
+                (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) body-id*))
 
-                      ; Score the piece in the bucket.
-                      piece-metadata (get-in state [:physics :pieces piece])
-                      state (bucket/on-collect state piece-metadata)
+                      ; Find and remove the piece in the global state tracker.
+                      ; Keys are b2BodyId*, need to unbox and compare by value.
+                      [piece-key piece] (some (fn [[k v]]
+                                                (when (-> (cpp/* (cpp/unbox (:* b2BodyId) k))
+                                                          (cpp/b2BodyIdEquals body-id))
+                                                  [k v]))
+                                              (get-in state [:physics :pieces]))
+                      state (update-in state [:physics :pieces] dissoc piece-key)]
 
-                      ; Remove the piece from the global state tracker.
-                      state (update-in state [:physics :pieces] dissoc piece)
+                  ; Destroy the physics body for the piece.
+                  (when (cpp/b2Body_IsValid body-id)
+                    (cpp/b2DestroyBody body-id))
 
-                      ; Destroy the physics body for the piece.
-                      _ (when (cpp/b2Body_IsValid body-id)
-                          (cpp/b2DestroyBody body-id))
+                  ; Handle the collection based on the piece type.
+                  (case (:type piece)
+                    ; Token score. Start the game.
+                    :token
+                    (let [pieces (create-pieces! world-id-box)]
+                      (-> state
+                          (update-in [:physics :pieces]
+                                     merge
+                                     (zipmap (map :body-id pieces) pieces))
+                          ; TODO: add countdown
+                          (assoc :mode :playing)))
 
-                      ; Chance to spawn a new piece to keep the bucket populated.
-                      ; TODO: consider random chance for new piece to become a bonus piece
-                      state (if (<= chance-to-spawn-piece-on-score (rand))
-                              (let [new-piece (spawn-random-piece! (get-in state [:physics :world-id]))]
-                                (assoc-in state [:physics :pieces (:body-id new-piece)] new-piece))
-                              state)]
-                  state))
+                    ; Standard piece type.
+                    (let [; Score the piece in the bucket.
+                          state (bucket/on-collect state piece)
+
+                          ; Chance to spawn a new piece to keep the bucket populated.
+                          ; TODO: consider random chance for new piece to become a bonus piece
+                          state (if (<= chance-to-spawn-piece-on-score (rand))
+                                  (let [new-piece (spawn-random-piece! (get-in state [:physics :world-id]))]
+                                    (assoc-in state [:physics :pieces (:body-id new-piece)] new-piece))
+                                  state)]
+                      state))))
               state
               (persistent! pieces-to-remove)))))
 

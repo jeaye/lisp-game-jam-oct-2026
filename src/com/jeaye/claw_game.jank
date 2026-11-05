@@ -34,8 +34,8 @@
    :combo-count 0
 
    ; :physics {:world-id ^(:* b2WorldId) _
-   ;           :pieces {b2BodyId... {:type [:enum bucket/piece-types]
-   ;                                 :bonus? :boolean}}}
+   ;           :pieces {b2BodyId*... {:type [:enum bucket/piece-types]
+   ;                                  :bonus? :boolean}}}
    :physics (physics/create-world!)
 
    ; Box2D can't be changed from another thread, so if we want to re-create the world, we
@@ -183,5 +183,5 @@
 (comment
   (def fut (future (-main)))
   (restart-game!)
-  (swap! global-state dissoc :gamepad-index)
+  (count (get-in @global-state [:physics :pieces]))
   (deref global-state))
