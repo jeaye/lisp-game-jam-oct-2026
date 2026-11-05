@@ -21,27 +21,108 @@
                   font-size
                   (cpp/GetColor 0xff6ec7ff))))
 
+(defn world-to-screen-position [world-pos]
+  (let [orig-x (/ (cpp/GetScreenWidth) 2.0)
+        orig-y (/ (cpp/GetScreenHeight) 2.0)
+        ppm (/ orig-x (/ (* physics/world-width physics/world-to-screen-modifier) 2.0))]
+    {:x (+ orig-x (* (:x world-pos) ppm))
+     :y (- orig-y (* (:y world-pos) ppm))}))
+
+(defn world-to-screen-size [world-size]
+  (let [screen-width (cpp/GetScreenWidth)
+        world-percent (/ world-size (* physics/world-width physics/world-to-screen-modifier))]
+    (* world-percent screen-width)))
+
 (defn render-debug-world! [state]
-  (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth) (* physics/world-width 1.05)))
+  (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth)
+                                        (* physics/world-width physics/world-to-screen-modifier)))
         world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
     (cpp/b2World_Draw world-id (cpp/& debug))))
 
 (defn render-world! [state]
-  #_(render-debug-world! state)
-  (doseq [[body-id piece] (get-in state [:physics :pieces])]
-    (prn :body-id body-id)
-    (let [pos (cpp/b2Body_GetPosition body-id)]
-      #_(case (:type piece)
-      :triangle nil
+  (render-debug-world! state)
+  #_(doseq [[body-id piece] (get-in state [:physics :pieces])]
+    (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) body-id))]
+      ; TODO: Probaly not needed anymore?
+      (when (cpp/b2Body_IsValid body-id)
+        (let [world-pos (cpp/b2Body_GetPosition body-id)
+              screen-pos (world-to-screen-position world-pos)
+              rot (cpp/b2Body_GetRotation body-id)
+              degrees (- (physics/radians-to-degrees (cpp/b2Rot_GetAngle rot)))]
+          (case (:type piece)
+            :triangle
+            (let [size (:size-multiplier piece)
+                  point-0-world-pos (cpp/b2Body_GetWorldPoint body-id (cpp/b2Vec2 0.0 (* 0.115470 size)))
+                  point-0-screen-pos (world-to-screen-position point-0-world-pos)
+                  point-1-world-pos (cpp/b2Body_GetWorldPoint body-id (cpp/b2Vec2 (* -0.1 size) (* -0.057735 size)))
+                  point-1-screen-pos (world-to-screen-position point-1-world-pos)
+                  point-2-world-pos (cpp/b2Body_GetWorldPoint body-id (cpp/b2Vec2 (* 0.1 size) (* -0.057735 size)))
+                  point-2-screen-pos (world-to-screen-position point-2-world-pos)]
+              (cpp/DrawTriangle (cpp/Vector2 (:x point-0-screen-pos) (:y point-0-screen-pos))
+                                (cpp/Vector2 (:x point-1-screen-pos) (:y point-1-screen-pos))
+                                (cpp/Vector2 (:x point-2-screen-pos) (:y point-2-screen-pos))
+                                cpp/MAGENTA))
 
-      :box nil
+            :box
+            (let [size (world-to-screen-size (* (* physics/base-box-size 2)
+                                                (:size-multiplier piece)))]
+              (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
+                                                   (:y screen-pos)
+                                                   size
+                                                   size)
+                                    (cpp/Vector2 (/ size 2.0) (/ size 2.0))
+                                    degrees
+                                    cpp/MAGENTA))
 
-      :circle nil
 
-      :rectangle
-      (cpp/DrawRectangle (.-x pos) (.-y pos) 430 140 cpp/MAGENTA)
+            :circle
+            (let [radius (world-to-screen-size (* physics/base-circle-size
+                                                  (:size-multiplier piece)))]
+              (cpp/DrawCircle (int (:x screen-pos))
+                              (int (:y screen-pos))
+                              radius
+                              cpp/MAGENTA))
 
-      :capsule nil))))
+            :rectangle
+            (let [width (world-to-screen-size (* (* physics/base-rectangle-width 2)
+                                                 (:size-multiplier piece)))
+                  height (world-to-screen-size (* (* physics/base-rectangle-height 2)
+                                                  (:size-multiplier piece)))]
+              (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
+                                                   (:y screen-pos)
+                                                   width
+                                                   height)
+                                    (cpp/Vector2 (/ width 2.0) (/ height 2.0))
+                                    degrees
+                                    cpp/MAGENTA))
+
+            :capsule
+            (let [circle-a-world-pos (cpp/b2Body_GetWorldPoint body-id {:x -0.1
+                                                                        :y -0.1})
+                  circle-a-screen-pos (world-to-screen-position circle-a-world-pos)
+                  circle-b-world-pos (cpp/b2Body_GetWorldPoint body-id {:x 0.1
+                                                                        :y 0.1})
+                  circle-b-screen-pos (world-to-screen-position circle-b-world-pos)
+                  radius (world-to-screen-size (* physics/base-capsule-size
+                                                  (:size-multiplier piece)))
+                  width (world-to-screen-size 0.2)
+                  height (* radius 2)]
+              (cpp/DrawCircle (int (:x circle-a-screen-pos))
+                              (int (:y circle-a-screen-pos))
+                              radius
+                              cpp/MAGENTA)
+              (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
+                                                   (:y screen-pos)
+                                                   width
+                                                   height)
+                                    (cpp/Vector2 (/ width 2.0) (/ height 2.0))
+                                    ; TODO: I don't know why this is needed.
+                                    (- degrees 45.0)
+                                    cpp/MAGENTA)
+              (cpp/DrawCircle (int (:x circle-b-screen-pos))
+                              (int (:y circle-b-screen-pos))
+                              radius
+                              cpp/MAGENTA)))))))))
 
 (defn render-ui! [state]
   (when (= :game-over (:mode state))
