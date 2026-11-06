@@ -161,8 +161,9 @@
         _ (cpp/b2CreatePolygonShape bottom-wall-id (cpp/& bottom-wall-shape-def) (cpp/& bottom-wall-box))]
     ))
 
-(defn random-piece-size! []
-  (+ 1.0 (rand (- piece-max-size 1))))
+(defn random-piece-size! [bonus?]
+  (cond-> (+ 1.0 (rand (- piece-max-size 1)))
+    bonus? (* 2.0)))
 
 (defn rand-pos []
   {:x (rand (/ world-width 2.0))
@@ -170,9 +171,10 @@
 
 (defn create-box-piece! [^(:* b2WorldId) world-id
                          ^(:* b2ShapeDef) shape-def
-                         pos]
+                         pos
+                         bonus?]
   (let [body-def (cpp/b2DefaultBodyDef)
-        size (random-piece-size!)
+        size (random-piece-size! bonus?)
         box (cpp/b2MakeBox (* base-box-size size) (* base-box-size size))
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
@@ -180,13 +182,15 @@
         _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& box))]
     {:type :box
      :size-multiplier size
+     :bonus? bonus?
      :body-id (cpp/box (cpp/new b2BodyId body-id))}))
 
 (defn create-triangle-piece! [^(:* b2WorldId) world-id
                               ^(:* b2ShapeDef) shape-def
-                              pos]
+                              pos
+                              bonus?]
   (let [triangle-points (#cpp (:array b2Vec2 3))
-        size (random-piece-size!)
+        size (random-piece-size! bonus?)
         ; TODO: We shouldn't do this for every triangle we create.
         ; Do it once and then put it into a var or something.
         _ (do
@@ -202,12 +206,14 @@
         _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& triangle))]
     {:type :triangle
      :size-multiplier size
+     :bonus? bonus?
      :body-id (cpp/box (cpp/new b2BodyId body-id))}))
 
 (defn create-circle-piece! [^(:* b2WorldId) world-id
                             ^(:* b2ShapeDef) shape-def
-                            pos]
-  (let [size (random-piece-size!)
+                            pos
+                            bonus?]
+  (let [size (random-piece-size! bonus?)
         circle (cpp/b2Circle (cpp/b2Vec2 0.0 0.0) (* base-circle-size size))
         body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
@@ -217,6 +223,7 @@
         _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))]
     {:type :circle
      :size-multiplier size
+     :bonus? bonus?
      :body-id (cpp/box (cpp/new b2BodyId body-id))}))
 
 (defn create-token-piece! [^(:* b2WorldId) world-id
@@ -232,12 +239,14 @@
         _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))]
     {:type :token
      :size-multiplier size
+     :bonus? false
      :body-id (cpp/box (cpp/new b2BodyId body-id))}))
 
 (defn create-capsule-piece! [^(:* b2WorldId) world-id
                              ^(:* b2ShapeDef) shape-def
-                             pos]
-  (let [size (random-piece-size!)
+                             pos
+                             bonus?]
+  (let [size (random-piece-size! bonus?)
         capsule (cpp/b2Capsule (cpp/b2Vec2 -0.1 -0.1)
                                (cpp/b2Vec2  0.1  0.1)
                                (* base-capsule-size size))
@@ -248,13 +257,15 @@
         _ (cpp/b2CreateCapsuleShape body-id shape-def (cpp/& capsule))]
     {:type :capsule
      :size-multiplier size
+     :bonus? bonus?
      :body-id (cpp/box (cpp/new b2BodyId body-id))}))
 
 (defn create-rectangle-piece! [^(:* b2WorldId) world-id
                                ^(:* b2ShapeDef) shape-def
-                               pos]
+                               pos
+                               bonus?]
   ; TODO: rectangles can spawn intersectting the walls
-  (let [size (random-piece-size!)
+  (let [size (random-piece-size! bonus?)
         rectangle (cpp/b2MakeBox (* base-rectangle-width size) base-rectangle-height)
         body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
@@ -263,6 +274,7 @@
         _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& rectangle))]
     {:type :rectangle
      :size-multiplier size
+     :bonus? bonus?
      :body-id (cpp/box (cpp/new b2BodyId body-id))}))
 
 ; TODO: make shape definitions more configurable
@@ -276,43 +288,53 @@
         _ (cpp/= (.-friction (.-material shape-def)) piece-friction)
         _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:piece filters)))
         shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))
+        total-pieces (+ box-create-count triangle-create-count
+                        circle-create-count capsule-create-count
+                        rectangle-create-count)
+        bonus-indices (->> (distinct (repeatedly #(rand-int total-pieces)))
+                           (take bonus-piece-count)
+                           (into #{}))
+        index (volatile! 0)
         pieces (volatile! [])]
 
     ; spawn boxes
     (dotimes [_ box-create-count]
-      (->> (create-box-piece! world-id shape-def-boxed (rand-pos))
-           (vswap! pieces conj)))
+      (let [bonus? (contains? bonus-indices @index)]
+        (vswap! index inc)
+        (->> (create-box-piece! world-id shape-def-boxed (rand-pos) bonus?)
+             (vswap! pieces conj))))
 
     ; spawn triangles
     (dotimes [_ triangle-create-count]
-      (->> (create-triangle-piece! world-id shape-def-boxed (rand-pos))
-           (vswap! pieces conj)))
+      (let [bonus? (contains? bonus-indices @index)]
+        (vswap! index inc)
+        (->> (create-triangle-piece! world-id shape-def-boxed (rand-pos) bonus?)
+           (vswap! pieces conj))))
 
     ; spawn circles
     (dotimes [_ circle-create-count]
-      (->> (create-circle-piece! world-id shape-def-boxed (rand-pos))
-           (vswap! pieces conj)))
+      (let [bonus? (contains? bonus-indices @index)]
+        (vswap! index inc)
+        (->> (create-circle-piece! world-id shape-def-boxed (rand-pos) bonus?)
+           (vswap! pieces conj))))
 
     ; spawn capsules
     (dotimes [_ capsule-create-count]
-      (->> (create-capsule-piece! world-id shape-def-boxed (rand-pos))
-           (vswap! pieces conj)))
+      (let [bonus? (contains? bonus-indices @index)]
+        (vswap! index inc)
+        (->> (create-capsule-piece! world-id shape-def-boxed (rand-pos) bonus?)
+             (vswap! pieces conj))))
 
     ; spawn rectangles
     (dotimes [_ capsule-create-count]
-      (->> (create-rectangle-piece! world-id shape-def-boxed (rand-pos))
-           (vswap! pieces conj)))
-
-    ; select random pieces to be marked as bonus
-    ; TODO: prevent selecting the same piece multiple
-    ; TODO: Decide bonus sooner and make bonus pieces larger, so they're easier to spot
-    (dotimes [_ bonus-piece-count]
-      (let [idx (rand-int (count @pieces))]
-        (vswap! pieces assoc-in [idx :bonus?] true)))
+      (let [bonus? (contains? bonus-indices @index)]
+        (vswap! index inc)
+        (->> (create-rectangle-piece! world-id shape-def-boxed (rand-pos) bonus?)
+             (vswap! pieces conj))))
 
     @pieces))
 
-(defn spawn-random-piece! [world-id]
+(defn spawn-random-piece! [world-id bonus?]
   ; TODO: Reuse this shape-def with create-pieces!
   (let [shape-def (cpp/b2DefaultShapeDef)
         ; TODO: Mass.
@@ -326,11 +348,11 @@
                    bucket-width)
              :y (/ world-height 2.0)}]
     (case (rand-nth random-piece-types)
-      :triangle (create-triangle-piece! world-id shape-def-boxed pos)
-      :box (create-box-piece! world-id shape-def-boxed pos)
-      :circle (create-circle-piece! world-id shape-def-boxed pos)
-      :rectangle (create-rectangle-piece! world-id shape-def-boxed pos)
-      :capsule (create-capsule-piece! world-id shape-def-boxed pos))))
+      :triangle (create-triangle-piece! world-id shape-def-boxed pos bonus?)
+      :box (create-box-piece! world-id shape-def-boxed pos bonus?)
+      :circle (create-circle-piece! world-id shape-def-boxed pos bonus?)
+      :rectangle (create-rectangle-piece! world-id shape-def-boxed pos bonus?)
+      :capsule (create-capsule-piece! world-id shape-def-boxed pos bonus?))))
 
 (def claw-tip-points (let [third-length 0.3
                            half-third-length (/ third-length 2)
@@ -635,6 +657,7 @@
                                                           (cpp/b2BodyIdEquals body-id))
                                                   [k v]))
                                               (get-in state [:physics :pieces]))
+                      bonus? (:bonus? piece)
                       state (update-in state [:physics :pieces] dissoc piece-key)]
 
                   ; Destroy the physics body for the piece.
@@ -653,9 +676,9 @@
                           state (bucket/on-collect state piece)
 
                           ; Chance to spawn a new piece to keep the bucket populated.
-                          ; TODO: consider random chance for new piece to become a bonus piece
-                          state (if (<= chance-to-spawn-piece-on-score (rand))
-                                  (let [new-piece (spawn-random-piece! (get-in state [:physics :world-id]))]
+                          state (if (or bonus?(<= chance-to-spawn-piece-on-score (rand)))
+                                  (let [new-piece (spawn-random-piece! (get-in state [:physics :world-id])
+                                                                       bonus?)]
                                     (assoc-in state [:physics :pieces (:body-id new-piece)] new-piece))
                                   state)]
                       state))))
