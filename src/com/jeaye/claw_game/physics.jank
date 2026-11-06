@@ -165,8 +165,8 @@
   (+ 1.0 (rand (- piece-max-size 1))))
 
 (defn rand-pos []
-  {:x (rand (/ world-width 2))
-   :y (rand (/ world-height -2))})
+  {:x (rand (/ world-width 2.0))
+   :y (rand (/ world-height -2.0))})
 
 (defn create-box-piece! [^(:* b2WorldId) world-id
                          ^(:* b2ShapeDef) shape-def

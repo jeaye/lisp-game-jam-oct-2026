@@ -1,5 +1,6 @@
 (ns com.jeaye.claw-game
   (:include "raylib.h"
+            "rlgl.h"
             "raylib-trait.hpp"
             "box2d/box2d.h"
             "box2d_draw.h"
@@ -153,6 +154,7 @@
   #_(cpp/InitWindow 1920 1080 "janky claw") ; 16:9
   (cpp/InitWindow 960 540 "janky claw")
   (cpp/SetTargetFPS 60)
+  (cpp/rlEnableSmoothLines)
   ; TODO: restore?
   ; (cpp/HideCursor)
 

@@ -11,7 +11,7 @@
   :jank {:include-dirs ["include"]}
   :profiles {:base {:jank {:target-dir "target/debug"
                            :optimization-level 0
-                           ;:eager? true
+                           :eager? true
                            :debug? false}}
              :release {:jank {:target-dir "target/release"
                               :optimization-level 3}}})
