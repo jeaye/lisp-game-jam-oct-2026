@@ -52,6 +52,13 @@
 (def game-over-restart-text-font-size 30)
 (def game-over-restart-text-width (cpp/MeasureText game-over-restart-text game-over-restart-text-font-size))
 
+(def claw-hub-color cpp/GRAY)
+(def claw-arm-color cpp/PINK)
+(def piece-box-color cpp/ORANGE)
+(def piece-triangle-color cpp/GREEN)
+(def piece-circle-color cpp/RED)
+(def piece-rectangle-color cpp/YELLOW)
+(def piece-capsule-color cpp/BLUE)
 
 (defn world-to-screen-position [world-pos]
   (let [orig-x (/ (cpp/GetScreenWidth) 2.0)
@@ -83,18 +90,18 @@
     (cpp/DrawCircle (int (:x circle-a-screen-pos))
                     (int (:y circle-a-screen-pos))
                     radius
-                    cpp/MAGENTA)
+                    piece-capsule-color)
     (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
                                          (:y screen-pos)
                                          width
                                          height)
                           (cpp/Vector2 (/ width 2.0) (/ height 2.0))
                           (- degrees 45.0)
-                          cpp/MAGENTA)
+                          piece-capsule-color)
     (cpp/DrawCircle (int (:x circle-b-screen-pos))
                     (int (:y circle-b-screen-pos))
                     radius
-                    cpp/MAGENTA)))
+                    piece-capsule-color)))
 
 (defn render-claw-arm! [state side]
   (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) (get-in state [:physics (if (= :left side)
@@ -114,7 +121,7 @@
                         (cpp/Vector2 (:x end-screen)
                                      (:y end-screen))
                         6.0
-                        cpp/RED)))))
+                        claw-arm-color)))))
 
 (defn render-claw! [state]
   ; Central hub.
@@ -131,7 +138,7 @@
                                          height)
                           (cpp/Vector2 (/ width 2.0) (/ height 2.0))
                           degrees
-                          cpp/MAGENTA))
+                          claw-hub-color))
 
   (render-claw-arm! state :left)
   (render-claw-arm! state :right))
@@ -161,7 +168,7 @@
               (cpp/DrawTriangle (cpp/Vector2 (:x point-0-screen-pos) (:y point-0-screen-pos))
                                 (cpp/Vector2 (:x point-1-screen-pos) (:y point-1-screen-pos))
                                 (cpp/Vector2 (:x point-2-screen-pos) (:y point-2-screen-pos))
-                                cpp/MAGENTA))
+                                piece-triangle-color))
 
             :box
             (let [size (world-to-screen-size (* (* physics/base-box-size 2)
@@ -172,7 +179,7 @@
                                                    size)
                                     (cpp/Vector2 (/ size 2.0) (/ size 2.0))
                                     degrees
-                                    cpp/MAGENTA))
+                                    piece-box-color))
 
 
             (:circle :token)
@@ -181,7 +188,7 @@
               (cpp/DrawCircle (int (:x screen-pos))
                               (int (:y screen-pos))
                               radius
-                              cpp/MAGENTA))
+                              piece-circle-color))
 
             :rectangle
             (let [width (world-to-screen-size (* (* physics/base-rectangle-width 2)
@@ -194,7 +201,7 @@
                                                    height)
                                     (cpp/Vector2 (/ width 2.0) (/ height 2.0))
                                     degrees
-                                    cpp/MAGENTA))
+                                    piece-rectangle-color))
 
             :capsule
             (render-capsule! body-id-boxed
