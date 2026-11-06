@@ -43,7 +43,7 @@
       * Bonuses
       * Bombs defused / exploded
     * Restarting goes back to coin drop
-* [jeaye] Rendering
+* [done] Rendering
   * Claw
   * Pieces
   * Bucket
@@ -59,7 +59,7 @@
   * Bloom/glow for the pieces
   * Scoring effect (confetti?)
   * Claw scraping sparks
-  * Bonus piece lets you know that it's special
+  * [done] Bonus piece lets you know that it's special
 * Up in the air
   * Easy screenshotting?
   * Options robustness

@@ -332,7 +332,7 @@
 
     (when (= :game-over (:mode state))
       (let [; TODO: add complete game over stats
-            game-over-text (format "SCORE: {}" (:score state))
+            game-over-text (format "SCORE: {}" (ceil (:score state)))
 
             game-over-width (int (* screen-width 0.8))
             game-over-height (int (* screen-height 0.7))

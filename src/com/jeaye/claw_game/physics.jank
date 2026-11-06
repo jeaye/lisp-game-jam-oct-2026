@@ -71,6 +71,7 @@
 (def bonus-piece-count 10)
 ; Percent chance to spawn a new piece when scoring. (0.4 == 40%)
 (def chance-to-spawn-piece-on-score 0.4)
+(def chance-to-spawn-bonus-piece 0.05)
 
 (def base-box-size 0.1)
 (def base-circle-size 0.1)
@@ -657,7 +658,6 @@
                                                           (cpp/b2BodyIdEquals body-id))
                                                   [k v]))
                                               (get-in state [:physics :pieces]))
-                      bonus? (:bonus? piece)
                       state (update-in state [:physics :pieces] dissoc piece-key)]
 
                   ; Destroy the physics body for the piece.
@@ -676,8 +676,9 @@
                           state (bucket/on-collect state piece)
 
                           ; Chance to spawn a new piece to keep the bucket populated.
-                          state (if (<= chance-to-spawn-piece-on-score (rand))
-                                  (let [new-piece (spawn-random-piece! (get-in state [:physics :world-id])
+                          state (if (<= (rand) chance-to-spawn-piece-on-score)
+                                  (let [bonus? (<= (rand) chance-to-spawn-bonus-piece)
+                                        new-piece (spawn-random-piece! (get-in state [:physics :world-id])
                                                                        bonus?)]
                                     (assoc-in state [:physics :pieces (:body-id new-piece)] new-piece))
                                   state)]
