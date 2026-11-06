@@ -10,6 +10,7 @@
 
 ;https://www.color-hex.com/color-palette/71344
 (def color-black (cpp/GetColor 0x0D0221ff))
+(def color-white (cpp/GetColor 0xF5F0FFff))
 (def color-gray (cpp/GetColor 0x6B6B8Fff))
 (def color-purple (cpp/GetColor 0xb25da6ff))
 (def color-pink (cpp/GetColor 0xFF6EC7ff))
@@ -19,7 +20,7 @@
 (def color-red (cpp/GetColor 0xce4a4aff))
 (def color-orange (cpp/GetColor 0xFF9E3Dff))
 
-(def text-color cpp/WHITE)
+(def text-color color-white)
 
 (def background-color color-black)
 
@@ -61,10 +62,10 @@
 (def claw-arm-color color-pink)
 (def piece-box-color color-orange)
 (def piece-triangle-color color-green)
-(def piece-circle-color color-pink)
+(def piece-circle-color color-red)
 (def piece-rectangle-color color-yellow)
 (def piece-capsule-color color-blue)
-(def piece-bonus-color color-red)
+(def piece-bonus-color color-white)
 
 (def claw-arm-thickness 6.0)
 (def piece-line-thickness 2.0)

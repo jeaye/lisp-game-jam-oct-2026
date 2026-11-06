@@ -305,6 +305,7 @@
 
     ; select random pieces to be marked as bonus
     ; TODO: prevent selecting the same piece multiple
+    ; TODO: Decide bonus sooner and make bonus pieces larger, so they're easier to spot
     (dotimes [_ bonus-piece-count]
       (let [idx (rand-int (count @pieces))]
         (vswap! pieces assoc-in [idx :bonus?] true)))
