@@ -54,9 +54,7 @@
 (def game-over-text-font-size 40)
 (def game-over-text-color text-color)
 
-(def game-over-restart-text (format "PRESS THE {} BUTTON TO RESTART" (gamepad/get-accept-button-name)))
 (def game-over-restart-text-font-size 30)
-(def game-over-restart-text-width (cpp/MeasureText game-over-restart-text game-over-restart-text-font-size))
 
 (def claw-hub-color color-gray)
 (def claw-arm-color color-pink)
@@ -344,7 +342,9 @@
                            game-over-border-thickness)
             game-over-y (- (/ (+ screen-height border-thickness ticker-height) 2)
                            (/ game-over-height 2)
-                           game-over-border-thickness)]
+                           game-over-border-thickness)
+            game-over-restart-text (format "PRESS THE {} BUTTON TO RESTART" (gamepad/get-accept-button-name))
+            game-over-restart-text-width (cpp/MeasureText game-over-restart-text game-over-restart-text-font-size)]
 
         ; Game over modal + border.
         (cpp/DrawRectangle (- game-over-x game-over-border-thickness)
@@ -368,7 +368,8 @@
         ; Game over restart text.
         (cpp/DrawText game-over-restart-text
                       (+ game-over-x game-over-padding
-                         (- (/ game-over-restart-text-width 2)))
+                         (- (/ game-over-restart-text-width 2))
+                         (/ game-over-width 2))
                       (+ game-over-y game-over-height
                          (- (int (* game-over-restart-text-font-size 0.8)))
                          (- game-over-padding))
