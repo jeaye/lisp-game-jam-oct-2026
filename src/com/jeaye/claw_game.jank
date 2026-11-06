@@ -111,7 +111,7 @@
 
     (cond-> state
       true gamepad/update-gamepad-index
-      (not (paused? state)) physics/update!
+      (not (graphics/paused? state)) physics/update!
       (= :playing (:mode state)) update-time-remaining
       (= :playing (:mode state)) update-combo-time-remaining
       (= :countdown (:mode state)) update-countdown-time-remaining
