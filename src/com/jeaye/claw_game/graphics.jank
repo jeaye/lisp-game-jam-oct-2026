@@ -1,6 +1,7 @@
 (ns com.jeaye.claw-game.graphics
   (:include "raylib.h"
             "raylib-trait.hpp"
+            "raylib-extension.hpp"
             "box2d/box2d.h"
             "box2d_draw.h"
             "box2d-trait.hpp")
@@ -8,15 +9,19 @@
             [com.jeaye.claw-game.gamepad :as gamepad]))
 
 ;https://www.color-hex.com/color-palette/71344
+(def color-black (cpp/GetColor 0x0D0221ff))
+(def color-gray (cpp/GetColor 0x6B6B8Fff))
 (def color-purple (cpp/GetColor 0xb25da6ff))
+(def color-pink (cpp/GetColor 0xFF6EC7ff))
 (def color-blue (cpp/GetColor 0x6688c3ff))
-(def color-green (cpp/GetColor 0x48a56aff))
+(def color-green (cpp/GetColor 0x00F5A0ff))
 (def color-yellow (cpp/GetColor 0xeaaf41ff))
 (def color-red (cpp/GetColor 0xce4a4aff))
+(def color-orange (cpp/GetColor 0xFF9E3Dff))
 
 (def text-color cpp/WHITE)
 
-(def background-color cpp/BLACK)
+(def background-color color-black)
 
 ; TODO: convert phy defs in world space to screen space
 (def border-thickness 13)
@@ -52,13 +57,16 @@
 (def game-over-restart-text-font-size 30)
 (def game-over-restart-text-width (cpp/MeasureText game-over-restart-text game-over-restart-text-font-size))
 
-(def claw-hub-color cpp/GRAY)
-(def claw-arm-color cpp/PINK)
-(def piece-box-color cpp/ORANGE)
-(def piece-triangle-color cpp/GREEN)
-(def piece-circle-color cpp/RED)
-(def piece-rectangle-color cpp/YELLOW)
-(def piece-capsule-color cpp/BLUE)
+(def claw-hub-color color-gray)
+(def claw-arm-color color-pink)
+(def piece-box-color color-orange)
+(def piece-triangle-color color-green)
+(def piece-circle-color color-red)
+(def piece-rectangle-color color-yellow)
+(def piece-capsule-color color-blue)
+
+(def claw-arm-thickness 6.0)
+(def piece-line-thickness 2.0)
 
 (defn world-to-screen-position [world-pos]
   (let [orig-x (/ (cpp/GetScreenWidth) 2.0)
@@ -87,21 +95,24 @@
         radius (world-to-screen-size radius)
         width (world-to-screen-size width)
         height (* radius 2)]
-    (cpp/DrawCircle (int (:x circle-a-screen-pos))
-                    (int (:y circle-a-screen-pos))
-                    radius
-                    piece-capsule-color)
-    (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
-                                         (:y screen-pos)
-                                         width
-                                         height)
-                          (cpp/Vector2 (/ width 2.0) (/ height 2.0))
-                          (- degrees 45.0)
-                          piece-capsule-color)
-    (cpp/DrawCircle (int (:x circle-b-screen-pos))
-                    (int (:y circle-b-screen-pos))
-                    radius
-                    piece-capsule-color)))
+    (cpp/DrawCircleLinesEx (cpp/Vector2 (int (:x circle-a-screen-pos))
+                                        (int (:y circle-a-screen-pos)))
+                           radius
+                           piece-line-thickness
+                           piece-capsule-color)
+    (cpp/DrawRectangleProLinesEx (cpp/Rectangle (:x screen-pos)
+                                                (:y screen-pos)
+                                                width
+                                                height)
+                                 (cpp/Vector2 (/ width 2.0) (/ height 2.0))
+                                 (- degrees 45.0)
+                                 piece-line-thickness
+                                 piece-capsule-color)
+    (cpp/DrawCircleLinesEx (cpp/Vector2 (int (:x circle-b-screen-pos))
+                                        (int (:y circle-b-screen-pos)))
+                           radius
+                           piece-line-thickness
+                           piece-capsule-color)))
 
 (defn render-claw-arm! [state side]
   (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) (get-in state [:physics (if (= :left side)
@@ -120,7 +131,7 @@
                                      (:y start-screen))
                         (cpp/Vector2 (:x end-screen)
                                      (:y end-screen))
-                        6.0
+                        claw-arm-thickness
                         claw-arm-color)))))
 
 (defn render-claw! [state]
@@ -145,9 +156,7 @@
 
 (defn render-world! [state]
   ;(render-debug-world! state)
-
   (render-claw! state)
-
   (doseq [[body-id-boxed piece] (get-in state [:physics :pieces])]
     (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) body-id-boxed))]
       ; TODO: Probaly not needed anymore?
@@ -165,43 +174,46 @@
                   point-1-screen-pos (world-to-screen-position point-1-world-pos)
                   point-2-world-pos (cpp/b2Body_GetWorldPoint body-id (cpp/b2Vec2 (* 0.1 size) (* -0.057735 size)))
                   point-2-screen-pos (world-to-screen-position point-2-world-pos)]
-              (cpp/DrawTriangle (cpp/Vector2 (:x point-0-screen-pos) (:y point-0-screen-pos))
-                                (cpp/Vector2 (:x point-1-screen-pos) (:y point-1-screen-pos))
-                                (cpp/Vector2 (:x point-2-screen-pos) (:y point-2-screen-pos))
-                                piece-triangle-color))
+              (cpp/DrawTriangleLines (cpp/Vector2 (:x point-0-screen-pos) (:y point-0-screen-pos))
+                                     (cpp/Vector2 (:x point-1-screen-pos) (:y point-1-screen-pos))
+                                     (cpp/Vector2 (:x point-2-screen-pos) (:y point-2-screen-pos))
+                                     piece-triangle-color))
 
             :box
             (let [size (world-to-screen-size (* (* physics/base-box-size 2)
                                                 (:size-multiplier piece)))]
-              (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
-                                                   (:y screen-pos)
-                                                   size
-                                                   size)
-                                    (cpp/Vector2 (/ size 2.0) (/ size 2.0))
-                                    degrees
-                                    piece-box-color))
+              (cpp/DrawRectangleProLinesEx (cpp/Rectangle (:x screen-pos)
+                                                          (:y screen-pos)
+                                                          size
+                                                          size)
+                                           (cpp/Vector2 (/ size 2.0) (/ size 2.0))
+                                           degrees
+                                           piece-line-thickness
+                                           piece-box-color))
 
 
             (:circle :token)
             (let [radius (world-to-screen-size (* physics/base-circle-size
                                                   (:size-multiplier piece)))]
-              (cpp/DrawCircle (int (:x screen-pos))
-                              (int (:y screen-pos))
-                              radius
-                              piece-circle-color))
+              (cpp/DrawCircleLinesEx (cpp/Vector2 (int (:x screen-pos))
+                                                  (int (:y screen-pos)))
+                                     radius
+                                     piece-line-thickness
+                                     piece-circle-color))
 
             :rectangle
             (let [width (world-to-screen-size (* (* physics/base-rectangle-width 2)
                                                  (:size-multiplier piece)))
                   height (world-to-screen-size (* (* physics/base-rectangle-height 2)
                                                   (:size-multiplier piece)))]
-              (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
-                                                   (:y screen-pos)
-                                                   width
-                                                   height)
-                                    (cpp/Vector2 (/ width 2.0) (/ height 2.0))
-                                    degrees
-                                    piece-rectangle-color))
+              (cpp/DrawRectangleProLinesEx (cpp/Rectangle (:x screen-pos)
+                                                          (:y screen-pos)
+                                                          width
+                                                          height)
+                                           (cpp/Vector2 (/ width 2.0) (/ height 2.0))
+                                           degrees
+                                           piece-line-thickness
+                                           piece-rectangle-color))
 
             :capsule
             (render-capsule! body-id-boxed
