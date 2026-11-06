@@ -10,6 +10,8 @@
   :main com.jeaye.claw-game
   :jank {:include-dirs ["include"]}
   :profiles {:base {:jank {:target-dir "target/debug"
-                           :optimization-level 0}}
+                           :optimization-level 0
+                           ;:eager? true
+                           :debug? false}}
              :release {:jank {:target-dir "target/release"
                               :optimization-level 3}}})

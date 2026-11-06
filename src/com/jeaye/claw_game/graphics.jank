@@ -71,10 +71,78 @@
         world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
     (cpp/b2World_Draw world-id (cpp/& debug))))
 
+(defn render-capsule! [^(:* b2BodyId) body-id screen-pos degrees center-a center-b radius width]
+  (let [body-id (cpp/* body-id)
+        circle-a-world-pos (cpp/b2Body_GetWorldPoint body-id center-a)
+        circle-a-screen-pos (world-to-screen-position circle-a-world-pos)
+        circle-b-world-pos (cpp/b2Body_GetWorldPoint body-id center-b)
+        circle-b-screen-pos (world-to-screen-position circle-b-world-pos)
+        radius (world-to-screen-size radius)
+        width (world-to-screen-size width)
+        height (* radius 2)]
+    (cpp/DrawCircle (int (:x circle-a-screen-pos))
+                    (int (:y circle-a-screen-pos))
+                    radius
+                    cpp/MAGENTA)
+    (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
+                                         (:y screen-pos)
+                                         width
+                                         height)
+                          (cpp/Vector2 (/ width 2.0) (/ height 2.0))
+                          (- degrees 45.0)
+                          cpp/MAGENTA)
+    (cpp/DrawCircle (int (:x circle-b-screen-pos))
+                    (int (:y circle-b-screen-pos))
+                    radius
+                    cpp/MAGENTA)))
+
+(defn render-claw-arm! [state side]
+  (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) (get-in state [:physics (if (= :left side)
+                                                                          :left-tip-id
+                                                                          :right-tip-id)])))
+        world-pos (cpp/b2Body_GetPosition body-id)
+        screen-pos (world-to-screen-position world-pos)]
+    (dotimes [i 3]
+      (let [start-local (nth (get physics/claw-tip-points side) i)
+            start-world (cpp/b2Body_GetWorldPoint body-id start-local)
+            start-screen (world-to-screen-position start-world)
+            end-local (nth (get physics/claw-tip-points side) (inc i))
+            end-world (cpp/b2Body_GetWorldPoint body-id end-local)
+            end-screen (world-to-screen-position end-world)]
+        (cpp/DrawLineEx (cpp/Vector2 (:x start-screen)
+                                     (:y start-screen))
+                        (cpp/Vector2 (:x end-screen)
+                                     (:y end-screen))
+                        6.0
+                        cpp/RED)))))
+
+(defn render-claw! [state]
+  ; Central hub.
+  (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) (get-in state [:physics :central-hub-id])))
+        world-pos (cpp/b2Body_GetPosition body-id)
+        screen-pos (world-to-screen-position world-pos)
+        rot (cpp/b2Body_GetRotation body-id)
+        degrees (- (physics/radians-to-degrees (cpp/b2Rot_GetAngle rot)))
+        width (world-to-screen-size physics/claw-hub-width)
+        height (world-to-screen-size physics/claw-hub-height)]
+    (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
+                                         (:y screen-pos)
+                                         width
+                                         height)
+                          (cpp/Vector2 (/ width 2.0) (/ height 2.0))
+                          degrees
+                          cpp/MAGENTA))
+
+  (render-claw-arm! state :left)
+  (render-claw-arm! state :right))
+
 (defn render-world! [state]
-  (render-debug-world! state)
-  #_(doseq [[body-id piece] (get-in state [:physics :pieces])]
-    (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) body-id))]
+  ;(render-debug-world! state)
+
+  (render-claw! state)
+
+  (doseq [[body-id-boxed piece] (get-in state [:physics :pieces])]
+    (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) body-id-boxed))]
       ; TODO: Probaly not needed anymore?
       (when (cpp/b2Body_IsValid body-id)
         (let [world-pos (cpp/b2Body_GetPosition body-id)
@@ -129,31 +197,15 @@
                                     cpp/MAGENTA))
 
             :capsule
-            (let [circle-a-world-pos (cpp/b2Body_GetWorldPoint body-id {:x -0.1
-                                                                        :y -0.1})
-                  circle-a-screen-pos (world-to-screen-position circle-a-world-pos)
-                  circle-b-world-pos (cpp/b2Body_GetWorldPoint body-id {:x 0.1
-                                                                        :y 0.1})
-                  circle-b-screen-pos (world-to-screen-position circle-b-world-pos)
-                  radius (world-to-screen-size (* physics/base-capsule-size
-                                                  (:size-multiplier piece)))
-                  width (world-to-screen-size 0.2)
-                  height (* radius 2)]
-              (cpp/DrawCircle (int (:x circle-a-screen-pos))
-                              (int (:y circle-a-screen-pos))
-                              radius
-                              cpp/MAGENTA)
-              (cpp/DrawRectanglePro (cpp/Rectangle (:x screen-pos)
-                                                   (:y screen-pos)
-                                                   width
-                                                   height)
-                                    (cpp/Vector2 (/ width 2.0) (/ height 2.0))
-                                    (- degrees 45.0)
-                                    cpp/MAGENTA)
-              (cpp/DrawCircle (int (:x circle-b-screen-pos))
-                              (int (:y circle-b-screen-pos))
-                              radius
-                              cpp/MAGENTA))))))))
+            (render-capsule! body-id-boxed
+                             screen-pos
+                             degrees
+                             {:x -0.1
+                              :y -0.1}
+                             {:x 0.1
+                              :y 0.1}
+                             (* physics/base-capsule-size (:size-multiplier piece))
+                             0.2)))))))
 
 (defn ceil [x]
   (let [n (long x)]
@@ -273,8 +325,7 @@
         ; Game over restart text.
         (cpp/DrawText game-over-restart-text
                       (+ game-over-x game-over-padding
-                         (- (/ game-over-restart-text-width 2))
-                         (/ game-over-width 2))
+                         (- (/ game-over-restart-text-width 2)))
                       (+ game-over-y game-over-height
                          (- (int (* game-over-restart-text-font-size 0.8)))
                          (- game-over-padding))

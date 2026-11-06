@@ -57,6 +57,9 @@
 (def claw-carriage-density 5.0)
 (def claw-carriage-friction 0.3)
 
+(def claw-hub-width 0.6)
+(def claw-hub-height 0.2)
+
 ; Number of pieces of each shape to create.
 (def box-create-count 200)
 (def triangle-create-count 200)
@@ -437,6 +440,7 @@
         carriage-id (cpp/b2CreateBody (cpp/* world-id*) (cpp/& carriage-def))
         carriage-id-boxed (cpp/box (cpp/new b2BodyId carriage-id))
         carriage-shape-def (cpp/b2DefaultShapeDef)
+        ; TODO: Disable collision with pieces on the carriage box. It won't be rendered.
         _ (cpp/= (.-categoryBits (.-filter carriage-shape-def)) (int (:claw-carriage filters)))
         carriage-box (cpp/b2MakeBox 0.1 0.1)
         _ (cpp/b2CreatePolygonShape carriage-id (cpp/& carriage-shape-def) (cpp/& carriage-box))
@@ -451,7 +455,7 @@
         _ (cpp/= (.-density central-hub-shape-def) claw-carriage-density)
         _ (cpp/= (.-friction (.-material central-hub-shape-def)) claw-carriage-friction)
         _ (cpp/= (.-categoryBits (.-filter central-hub-shape-def)) (int (:claw-carriage filters)))
-        central-hub-box (cpp/b2MakeBox 0.3 0.1)
+        central-hub-box (cpp/b2MakeBox (/ claw-hub-width 2.0) (/ claw-hub-height 2.0))
         _ (cpp/b2CreatePolygonShape central-hub-id (cpp/& central-hub-shape-def) (cpp/& central-hub-box))
 
         central-hub-joint-id (create-claw-carriage-revolute-joint! world-id carriage-id-boxed central-hub-id-boxed)
