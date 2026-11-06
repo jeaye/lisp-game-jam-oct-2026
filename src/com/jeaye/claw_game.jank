@@ -91,11 +91,12 @@
     state))
 
 (defn update-paused [state]
-  (when (cpp/IsKeyPressed cpp/KEY_P)
+  (if (gamepad/is-pause-button-pressed (:gamepad-index state))
     (case (:mode state)
       :playing (assoc state :mode :paused)
       :paused (assoc state :mode :playing)
-      state)))
+      state)
+    state))
 
 (defn update-game [state]
   (try
@@ -103,20 +104,18 @@
     (when (cpp/IsKeyPressed cpp/KEY_ENTER)
       (restart-game!))
 
-    (when (and (= (:mode state) :game-over)
-               (gamepad/is-accept-button-pressed (:gamepad-index state)))
-      (restart-game!))
-
-    (when (= (:mode state) :playing)
-      (when (cpp/IsKeyPressed cpp/KEY_P)
-        ()))
+    ; Restart the game on gamepad accept button.
+    (when (gamepad/is-accept-button-pressed (:gamepad-index state))
+      (when (= :game-over (:mode state))
+        (restart-game!)))
 
     (cond-> state
       true gamepad/update-gamepad-index
-      true physics/update!
+      (not (paused? state)) physics/update!
       (= :playing (:mode state)) update-time-remaining
       (= :playing (:mode state)) update-combo-time-remaining
-      (= :countdown (:mode state)) update-countdown-time-remaining)
+      (= :countdown (:mode state)) update-countdown-time-remaining
+      true update-paused)
 
     (catch jank.runtime.object_ref e
       (log-error! (str "update exception: " (prn e)))

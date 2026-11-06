@@ -32,6 +32,9 @@
 (defn is-accept-button-pressed [index]
   (cpp/IsGamepadButtonPressed index cpp/GAMEPAD_BUTTON_RIGHT_FACE_DOWN))
 
+(defn is-pause-button-pressed [index]
+  (cpp/IsGamepadButtonPressed index cpp/GAMEPAD_BUTTON_MIDDLE_RIGHT))
+
 (defn update-gamepad-index [state]
   (if (cpp/IsGamepadAvailable (:gamepad-index state))
     ; Gamepad index is active; nop.

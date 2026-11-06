@@ -128,6 +128,10 @@
   (let [n (long x)]
     (if (> x n) (inc n) n)))
 
+(defn paused? [state]
+  (contains? #{:paused :game-over}
+             (:mode state)))
+
 (defn render-ui! [state]
   (when (= :game-over (:mode state))
     ; TODO: add complete game over stats
@@ -146,14 +150,15 @@
 
   ; debug
   (cpp/DrawText (clojure.string/replace
-                  (select-keys state [:score
-                                      :time-remaining
-                                      #_:combo-time-remaining
-                                      #_:combo-score-multiplier
-                                      #_:combo-count
-                                      #_:gamepad-index
-                                      :countdown-time-remaining
-                                      :mode])
+                  (merge (select-keys state [:score
+                                             :time-remaining
+                                             #_:combo-time-remaining
+                                             #_:combo-score-multiplier
+                                             #_:combo-count
+                                             #_:gamepad-index
+                                             :countdown-time-remaining
+                                             :mode])
+                         {:paused? (paused? state)})
                   #"," ",\n")
                 150 10 body-font-size cpp/MAGENTA))
 
