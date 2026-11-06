@@ -1,5 +1,6 @@
 #pragma once
 
+#include <math.h>
 #include <raylib.h>
 
 void DrawRectangleProLinesEx(Rectangle rec,
@@ -79,4 +80,61 @@ void DrawCircleLinesEx(Vector2 center, float radius, float lineThick, Color colo
 
   // segments = 0 lets raylib pick a smooth segment count from the radius
   DrawRing(center, radius - lineThick, radius, 0.0f, 360.0f, 0, color);
+}
+
+void DrawTriangleLinesEx(Vector2 v1, Vector2 v2, Vector2 v3, float lineThick, Color color)
+{
+  if(lineThick <= 0.0f)
+  {
+    return;
+  }
+
+  // DrawTriangle expects a specific winding order (in raylib's y-down screen
+  // space, cross < 0 is the accepted one), so normalize the input.
+  float cross = (v2.x - v1.x) * (v3.y - v1.y) - (v2.y - v1.y) * (v3.x - v1.x);
+  if(cross == 0.0f)
+  {
+    return; // degenerate triangle
+  }
+  if(cross > 0.0f)
+  {
+    Vector2 tmp = v2;
+    v2 = v3;
+    v3 = tmp;
+  }
+
+  // Side lengths (a is opposite v1, b opposite v2, c opposite v3)
+  float a = hypotf(v3.x - v2.x, v3.y - v2.y);
+  float b = hypotf(v3.x - v1.x, v3.y - v1.y);
+  float c = hypotf(v2.x - v1.x, v2.y - v1.y);
+  float perimeter = a + b + c;
+
+  // Incenter and inradius
+  Vector2 incenter = { (a * v1.x + b * v2.x + c * v3.x) / perimeter,
+                       (a * v1.y + b * v2.y + c * v3.y) / perimeter };
+  float inradius = fabsf(cross) / perimeter; // = 2*area/perimeter
+
+  // Like DrawRectangleLinesEx, thickness grows inward, so the outer edge
+  // stays exactly on the given vertices. If the line is at least as thick
+  // as the inradius, the result is a filled triangle.
+  if(lineThick >= inradius)
+  {
+    DrawTriangle(v1, v2, v3, color);
+    return;
+  }
+
+  // Shrinking the triangle toward the incenter by this factor moves every
+  // edge inward by exactly lineThick, with clean mitered corners.
+  float k = (inradius - lineThick) / inradius;
+  Vector2 i1 = { incenter.x + (v1.x - incenter.x) * k, incenter.y + (v1.y - incenter.y) * k };
+  Vector2 i2 = { incenter.x + (v2.x - incenter.x) * k, incenter.y + (v2.y - incenter.y) * k };
+  Vector2 i3 = { incenter.x + (v3.x - incenter.x) * k, incenter.y + (v3.y - incenter.y) * k };
+
+  // Three trapezoids between the outer and inner triangles, two triangles each
+  DrawTriangle(v1, v2, i2, color);
+  DrawTriangle(v1, i2, i1, color);
+  DrawTriangle(v2, v3, i3, color);
+  DrawTriangle(v2, i3, i2, color);
+  DrawTriangle(v3, v1, i1, color);
+  DrawTriangle(v3, i1, i3, color);
 }

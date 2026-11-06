@@ -27,13 +27,13 @@
 (def border-thickness 13)
 (def border-padding-x 10)
 (def border-padding-y 0)
-(def border-color color-green)
+(def border-color color-purple)
 
 (def bucket-width 120)
 (def bucket-height 155)
 (def bucket-color background-color)
 (def bucket-border-thickness (/ border-thickness 3))
-(def bucket-border-color-top color-yellow)
+(def bucket-border-color-top color-green)
 (def bucket-border-color-right border-color)
 
 (def ticker-height 60)
@@ -174,10 +174,11 @@
                   point-1-screen-pos (world-to-screen-position point-1-world-pos)
                   point-2-world-pos (cpp/b2Body_GetWorldPoint body-id (cpp/b2Vec2 (* 0.1 size) (* -0.057735 size)))
                   point-2-screen-pos (world-to-screen-position point-2-world-pos)]
-              (cpp/DrawTriangleLines (cpp/Vector2 (:x point-0-screen-pos) (:y point-0-screen-pos))
-                                     (cpp/Vector2 (:x point-1-screen-pos) (:y point-1-screen-pos))
-                                     (cpp/Vector2 (:x point-2-screen-pos) (:y point-2-screen-pos))
-                                     piece-triangle-color))
+              (cpp/DrawTriangleLinesEx (cpp/Vector2 (:x point-0-screen-pos) (:y point-0-screen-pos))
+                                       (cpp/Vector2 (:x point-1-screen-pos) (:y point-1-screen-pos))
+                                       (cpp/Vector2 (:x point-2-screen-pos) (:y point-2-screen-pos))
+                                       piece-line-thickness
+                                       piece-triangle-color))
 
             :box
             (let [size (world-to-screen-size (* (* physics/base-box-size 2)
@@ -292,7 +293,7 @@
     ; Playspace ticker text.
     ; TODO: consider subtitle (eg. controls, press x to restart, etc.)
     (when-some [ticker-text (cond
-                              (= :coin-drop (:mode state)) "INSERT COIN TO PLAY"
+                              (= :coin-drop (:mode state)) "INSERT A COIN TO PLAY"
                               (= :countdown (:mode state)) (str (ceil (:countdown-time-remaining state)))
                               (= :playing (:mode state)) (format "TIME: {} --- SCORE: {}"
                                                                 (ceil (:time-remaining state))
