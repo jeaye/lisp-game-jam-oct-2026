@@ -1,5 +1,6 @@
 (ns com.jeaye.claw-game
   (:include "raylib.h"
+            "raylib-trait.hpp"
             "box2d/box2d.h"
             "box2d_draw.h"
             "box2d-trait.hpp")
@@ -133,7 +134,7 @@
 (defn render-game! [state]
   (try
     (cpp/BeginDrawing)
-    (cpp/ClearBackground cpp/BLACK)
+    (cpp/ClearBackground graphics/background-color)
 
     (graphics/render! state)
 

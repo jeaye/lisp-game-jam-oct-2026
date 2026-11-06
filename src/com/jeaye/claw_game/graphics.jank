@@ -1,26 +1,57 @@
 (ns com.jeaye.claw-game.graphics
   (:include "raylib.h"
+            "raylib-trait.hpp"
             "box2d/box2d.h"
             "box2d_draw.h"
             "box2d-trait.hpp")
   (:require [com.jeaye.claw-game.physics :as physics]
             [com.jeaye.claw-game.gamepad :as gamepad]))
 
-(def base-font-size 20)
-(def title-font-size (* base-font-size 2))
-(def header-font-size (int (* base-font-size 1.5)))
-(def body-font-size base-font-size)
-(def countdown-font-size (* title-font-size 3))
+;https://www.color-hex.com/color-palette/71344
+(def color-purple (cpp/GetColor 0xb25da6ff))
+(def color-blue (cpp/GetColor 0x6688c3ff))
+(def color-green (cpp/GetColor 0x48a56aff))
+(def color-yellow (cpp/GetColor 0xeaaf41ff))
+(def color-red (cpp/GetColor 0xce4a4aff))
 
-(defn render-centered-text! [msg font-size y-offset]
-  (let [width (cpp/GetScreenWidth)
-        height (cpp/GetScreenHeight)
-        length (cpp/MeasureText msg font-size)]
-    (cpp/DrawText msg
-                  (- (/ width 2) (/ length 2))
-                  (+ (/ height 2) y-offset)
-                  font-size
-                  (cpp/GetColor 0xff6ec7ff))))
+(def text-color cpp/WHITE)
+
+(def background-color cpp/BLACK)
+
+; TODO: convert phy defs in world space to screen space
+(def border-thickness 13)
+(def border-padding-x 10)
+(def border-padding-y 0)
+(def border-color color-green)
+
+(def bucket-width 120)
+(def bucket-height 155)
+(def bucket-color background-color)
+(def bucket-border-thickness (/ border-thickness 3))
+(def bucket-border-color-top color-yellow)
+(def bucket-border-color-right border-color)
+
+(def ticker-height 60)
+(def ticker-border-bottom-height (/ border-thickness 3))
+(def ticker-border-color border-color)
+
+(def ticker-text-font-size 40)
+(def ticker-text-y-offset 18)
+(def ticker-text-y (+ border-thickness (/ ticker-height 2) (- ticker-text-y-offset)))
+(def ticker-text-color text-color)
+
+(def game-over-border-thickness (/ border-thickness 2))
+(def game-over-border-color border-color)
+
+(def game-over-padding 10)
+
+(def game-over-text-font-size 40)
+(def game-over-text-color text-color)
+
+(def game-over-restart-text (format "PRESS THE {} BUTTON TO RESTART" (gamepad/get-accept-button-name)))
+(def game-over-restart-text-font-size 30)
+(def game-over-restart-text-width (cpp/MeasureText game-over-restart-text game-over-restart-text-font-size))
+
 
 (defn world-to-screen-position [world-pos]
   (let [orig-x (/ (cpp/GetScreenWidth) 2.0)
@@ -133,34 +164,124 @@
              (:mode state)))
 
 (defn render-ui! [state]
-  (when (= :game-over (:mode state))
-    ; TODO: add complete game over stats
-    ; TODO: add better formatting and styling
-    ; TODO: Use relative positions, by screen size, rather than absolute
-    (cpp/DrawRectangle 145 200 430 140 cpp/MAGENTA)
-    (cpp/DrawRectangle 150 205 420 130 cpp/BLACK)
-    (cpp/DrawText "GAME OVER" 160 215 header-font-size cpp/MAGENTA)
-    (cpp/DrawText (format "SCORE: {}" (:score state)) 160 250 body-font-size cpp/MAGENTA)
-    (cpp/DrawText (format "PRESS THE {} BUTTON TO RESTART" (gamepad/get-accept-button-name))
-                  160 305 body-font-size cpp/MAGENTA))
+  (let [screen-width (cpp/GetScreenWidth)
+        screen-height (cpp/GetScreenHeight)]
 
-  (when (= :countdown (:mode state))
-    (let [time-remaining (ceil (:countdown-time-remaining state))]
-      (render-centered-text! (str time-remaining) countdown-font-size 0)))
+    ; Playspace bucket: background, top border, right border.
+    (cpp/DrawRectangle (+ border-padding-x border-thickness)
+                       (- screen-height border-thickness bucket-height)
+                       bucket-width
+                       bucket-height
+                       bucket-color)
+    (cpp/DrawRectangle (+ border-padding-x border-thickness bucket-width (- bucket-border-thickness))
+                       (- screen-height border-thickness bucket-height)
+                       bucket-border-thickness
+                       bucket-height
+                       bucket-border-color-right)
+    (cpp/DrawRectangle (+ border-padding-x border-thickness)
+                       (- screen-height border-thickness bucket-height)
+                       bucket-width
+                       bucket-border-thickness
+                       bucket-border-color-top)
 
-  ; debug
-  (cpp/DrawText (clojure.string/replace
-                  (merge (select-keys state [:score
-                                             :time-remaining
-                                             #_:combo-time-remaining
-                                             #_:combo-score-multiplier
-                                             #_:combo-count
-                                             #_:gamepad-index
-                                             :countdown-time-remaining
-                                             :mode])
-                         {:paused? (paused? state)})
-                  #"," ",\n")
-                150 10 body-font-size cpp/MAGENTA))
+    ; Playspace borders: right, left, top, bottom.
+    (cpp/DrawRectangle border-padding-x
+                       border-padding-y
+                       border-thickness
+                       screen-height
+                       border-color)
+    (cpp/DrawRectangle (- screen-width border-padding-x border-thickness)
+                       border-padding-y
+                       border-thickness
+                       screen-height
+                       border-color)
+    (cpp/DrawRectangle border-padding-x
+                       border-padding-y
+                       (- screen-width (* border-padding-x 2))
+                       border-thickness
+                       border-color)
+    (cpp/DrawRectangle border-padding-x
+                       (- screen-height border-padding-y border-thickness)
+                       (- screen-width (* border-padding-x 2))
+                       border-thickness
+                       border-color)
+
+    ; Playspace ticker: background, bottom border.
+    (cpp/DrawRectangle (+ border-padding-x border-thickness)
+                       border-thickness
+                       (- screen-width (* border-thickness 2) (* border-padding-x 2))
+                       ticker-height
+                       background-color)
+    (cpp/DrawRectangle (+ border-padding-x border-thickness)
+                       (+ border-thickness ticker-height)
+                       (- screen-width (* border-thickness 2) (* border-padding-x 2))
+                       ticker-border-bottom-height
+                       ticker-border-color)
+
+    ; Playspace ticker text.
+    ; TODO: consider subtitle (eg. controls, press x to restart, etc.)
+    (when-some [ticker-text (cond
+                              (= :coin-drop (:mode state)) "INSERT COIN TO PLAY"
+                              (= :countdown (:mode state)) (str (ceil (:countdown-time-remaining state)))
+                              (= :playing (:mode state)) (format "TIME: {} --- SCORE: {}"
+                                                                (ceil (:time-remaining state))
+                                                                (ceil (:score state)))
+                              (= :game-over (:mode state)) "GAME OVER"
+                              (paused? state) "PAUSED"
+                              nil)]
+      (let [ticker-text-width (cpp/MeasureText ticker-text ticker-text-font-size)
+            ticker-text-x (- (/ screen-width 2) (/ ticker-text-width 2))]
+        (cpp/DrawText ticker-text
+                      ticker-text-x
+                      ticker-text-y
+                      ticker-text-font-size
+                      ticker-text-color)))
+
+    (when (= :game-over (:mode state))
+      (let [; TODO: add complete game over stats
+            game-over-text (format "SCORE: {}" (:score state))
+
+            game-over-width (int (* screen-width 0.8))
+            game-over-height (int (* screen-height 0.7))
+
+            game-over-x (- (/ screen-width 2)
+                           (/ game-over-width 2)
+                           game-over-border-thickness)
+            game-over-y (- (/ (+ screen-height border-thickness ticker-height) 2)
+                           (/ game-over-height 2)
+                           game-over-border-thickness)]
+
+        ; Game over modal + border.
+        (cpp/DrawRectangle (- game-over-x game-over-border-thickness)
+                           (- game-over-y game-over-border-thickness)
+                           (+ game-over-width (* game-over-border-thickness 2))
+                           (+ game-over-height (* game-over-border-thickness 2))
+                           game-over-border-color)
+        (cpp/DrawRectangle game-over-x
+                           game-over-y
+                           game-over-width
+                           game-over-height
+                           background-color)
+
+        ; Game over stats.
+        (cpp/DrawText game-over-text
+                      (+ game-over-x game-over-padding)
+                      (+ game-over-y game-over-padding)
+                      game-over-text-font-size
+                      game-over-text-color)
+
+        ; Game over restart text.
+        (cpp/DrawText game-over-restart-text
+                      (+ game-over-x game-over-padding
+                         (- (/ game-over-restart-text-width 2))
+                         (/ game-over-width 2))
+                      (+ game-over-y game-over-height
+                         (- (int (* game-over-restart-text-font-size 0.8)))
+                         (- game-over-padding))
+                      game-over-restart-text-font-size
+                      game-over-text-color)))
+
+    nil))
 
 (defn render! [state]
   (render-world! state)
