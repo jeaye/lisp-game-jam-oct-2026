@@ -23,12 +23,12 @@
 ; Types of pieces that can be randomly spawned.
 (def random-piece-types [:triangle :box :circle :rectangle :capsule])
 
-; The game world is 4 meters wide and 6 meters tall, to accomodate for box2d's
+; The game world is 16 meters wide and 9 meters tall, to accomodate for box2d's
 ; physics which work well with moving objects from 0.1 meters to 10 meters.
 ; https://box2d.org/documentation/index.html#autotoc_md6
 (def world-width 16.0)
 (def world-height 9.0)
-(def world-gravity -3.0)
+(def world-gravity -6.0)
 (def world-to-screen-modifier 1.05)
 
 (def wall-width 0.2)
@@ -42,19 +42,21 @@
 (def claw-tip-max-open-angle (degrees-to-radians 90.0))
 (def claw-tip-max-close-angle (degrees-to-radians -90.0))
 ; How snappy is the claw tip open/close, following the left/right triggers?
-(def claw-tip-track-gain 12.0)
-(def claw-tip-max-speed 5.0)
+(def claw-tip-track-gain 15.0)
+(def claw-tip-max-speed 9.0)
 (def claw-tip-density 1.0)
+(def claw-tip-mass 0.3)
 (def claw-tip-friction 0.8)
 
 ; How much can the claw rotate, in either direction, using the right stick?
 (def claw-max-rotation-angle (degrees-to-radians 45.0))
 ; How snappy is the claw rotation, following the right stick?
 (def claw-carriage-track-gain 3.0)
-(def claw-carriage-rotation-max-speed 3.0)
+(def claw-carriage-rotation-max-speed 4.0)
 ; How fast does the claw move, using the left stick?
 (def claw-carriage-max-speed 2.5)
 (def claw-carriage-density 5.0)
+(def claw-carriage-mass 2.0)
 (def claw-carriage-friction 0.3)
 
 (def claw-hub-width 0.6)
@@ -79,6 +81,7 @@
 (def base-rectangle-height 0.1)
 
 (def piece-density 0.3)
+(def piece-mass 0.1)
 (def piece-friction 0.4)
 
 (def token-size 5)
@@ -249,6 +252,14 @@
   {:x (rand (/ world-width 2.0))
    :y (rand (/ world-height -2.0))})
 
+(defn set-body-mass! [^(:* b2BodyId) body-id ^double target-mass]
+  (let [md (cpp/b2Body_GetMassData (cpp/* body-id))]
+    (when (< 0.0 (.-mass md))
+      (let [scale (/ target-mass (.-mass md))]
+        (cpp/= (.-mass md) target-mass)
+        (cpp/*= (.-rotationalInertia md) scale)
+        (cpp/b2Body_SetMassData (cpp/* body-id) md)))))
+
 (defn create-box-piece! [^(:* b2WorldId) world-id
                          ^(:* b2ShapeDef) shape-def
                          pos
@@ -259,11 +270,13 @@
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& box))]
+        _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& box))
+        body-id-boxed (cpp/box (cpp/new b2BodyId body-id))]
+    (set-body-mass! body-id-boxed piece-mass)
     {:type :box
      :size-multiplier size
      :bonus? bonus?
-     :body-id (cpp/box (cpp/new b2BodyId body-id))}))
+     :body-id body-id-boxed}))
 
 (defn create-triangle-piece! [^(:* b2WorldId) world-id
                               ^(:* b2ShapeDef) shape-def
@@ -283,11 +296,13 @@
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& triangle))]
+        _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& triangle))
+        body-id-boxed (cpp/box (cpp/new b2BodyId body-id))]
+    (set-body-mass! body-id-boxed piece-mass)
     {:type :triangle
      :size-multiplier size
      :bonus? bonus?
-     :body-id (cpp/box (cpp/new b2BodyId body-id))}))
+     :body-id body-id-boxed}))
 
 (defn create-circle-piece! [^(:* b2WorldId) world-id
                             ^(:* b2ShapeDef) shape-def
@@ -299,11 +314,13 @@
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))]
+        _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))
+        body-id-boxed (cpp/box (cpp/new b2BodyId body-id))]
+    (set-body-mass! body-id-boxed piece-mass)
     {:type :circle
      :size-multiplier size
      :bonus? bonus?
-     :body-id (cpp/box (cpp/new b2BodyId body-id))}))
+     :body-id body-id-boxed}))
 
 (defn create-token-piece! [^(:* b2WorldId) world-id
                            ^(:* b2ShapeDef) shape-def
@@ -314,11 +331,13 @@
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))]
+        _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))
+        body-id-boxed (cpp/box (cpp/new b2BodyId body-id))]
+    (set-body-mass! body-id-boxed piece-mass)
     {:type :token
      :size-multiplier size
      :bonus? false
-     :body-id (cpp/box (cpp/new b2BodyId body-id))}))
+     :body-id body-id-boxed}))
 
 (defn create-capsule-piece! [^(:* b2WorldId) world-id
                              ^(:* b2ShapeDef) shape-def
@@ -332,11 +351,13 @@
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        _ (cpp/b2CreateCapsuleShape body-id shape-def (cpp/& capsule))]
+        _ (cpp/b2CreateCapsuleShape body-id shape-def (cpp/& capsule))
+        body-id-boxed (cpp/box (cpp/new b2BodyId body-id))]
+    (set-body-mass! body-id-boxed piece-mass)
     {:type :capsule
      :size-multiplier size
      :bonus? bonus?
-     :body-id (cpp/box (cpp/new b2BodyId body-id))}))
+     :body-id body-id-boxed}))
 
 (defn create-rectangle-piece! [^(:* b2WorldId) world-id
                                ^(:* b2ShapeDef) shape-def
@@ -349,16 +370,17 @@
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
         _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& rectangle))]
+        _ (cpp/b2CreatePolygonShape body-id shape-def (cpp/& rectangle))
+        body-id-boxed (cpp/box (cpp/new b2BodyId body-id))]
+    (set-body-mass! body-id-boxed piece-mass)
     {:type :rectangle
      :size-multiplier size
      :bonus? bonus?
-     :body-id (cpp/box (cpp/new b2BodyId body-id))}))
+     :body-id body-id-boxed}))
 
 ; TODO: reduce duplication with body creation
 (defn create-pieces! [world-id]
   (let [shape-def (cpp/b2DefaultShapeDef)
-        ; TODO: Mass.
         _ (cpp/= (.-enableSensorEvents shape-def) true)
         _ (cpp/= (.-density shape-def) piece-density)
         _ (cpp/= (.-friction (.-material shape-def)) piece-friction)
@@ -413,7 +435,6 @@
 (defn spawn-random-piece! [world-id bonus?]
   ; TODO: Reuse this shape-def with create-pieces!
   (let [shape-def (cpp/b2DefaultShapeDef)
-        ; TODO: Mass.
         _ (cpp/= (.-enableSensorEvents shape-def) true)
         _ (cpp/= (.-density shape-def) piece-density)
         _ (cpp/= (.-friction (.-material shape-def)) piece-friction)
@@ -459,13 +480,15 @@
         _ (cpp/= (.-restitution (.-material shape-def)) 0.0)
         _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:claw-tip filters)))
         _ (cpp/= (.-maskBits (.-filter shape-def)) (:piece filters))
-        tip-radius 0.05]
+        tip-radius 0.05
+        body-id-boxed (cpp/box (cpp/new b2BodyId body-id))]
     (dotimes [i 3]
       (let [capsule (cpp/b2Capsule (nth (get claw-tip-points side) i)
                                    (nth (get claw-tip-points side) (inc i))
                                    tip-radius)]
         (cpp/b2CreateCapsuleShape body-id (cpp/& shape-def) (cpp/& capsule))))
-    (cpp/box (cpp/new b2BodyId body-id))))
+    (set-body-mass! body-id-boxed claw-tip-mass)
+    body-id-boxed))
 
 (defn create-claw-tip-joint! [^(:* b2WorldId) world-id
                               ^(:* b2BodyId) hub-id
@@ -559,6 +582,7 @@
 
         central-hub-joint-id (create-claw-carriage-revolute-joint! world-id carriage-id-boxed central-hub-id-boxed)
         ]
+    (set-body-mass! carriage-id-boxed claw-carriage-mass)
     {:carriage-id carriage-id-boxed
      :central-hub-id central-hub-id-boxed
      :central-hub-joint-id central-hub-joint-id}))
