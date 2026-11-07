@@ -173,24 +173,7 @@
   (let [screen-width (cpp/GetScreenWidth)
         screen-height (cpp/GetScreenHeight)]
 
-    ; Playspace bucket: background, top border, right border.
-    (cpp/DrawRectangle (+ border-padding-x border-thickness)
-                       (- screen-height border-thickness bucket-height)
-                       bucket-width
-                       bucket-height
-                       bucket-color)
-    (cpp/DrawRectangle (+ border-padding-x border-thickness bucket-width (- bucket-border-thickness))
-                       (- screen-height border-thickness bucket-height)
-                       bucket-border-thickness
-                       bucket-height
-                       bucket-border-color-right)
-    (cpp/DrawRectangle (+ border-padding-x border-thickness)
-                       (- screen-height border-thickness bucket-height)
-                       bucket-width
-                       bucket-border-thickness
-                       bucket-border-color-top)
-
-    ; Playspace borders: right, left, top, bottom.
+    ; Borders: right, left, top, bottom.
     (cpp/DrawRectangle border-padding-x
                        border-padding-y
                        border-thickness
@@ -210,8 +193,67 @@
                        (- screen-height border-padding-y border-thickness)
                        (- screen-width (* border-padding-x 2))
                        border-thickness
-                       border-color))
-  nil)
+                       border-color)
+
+    (case (:mode state)
+      (:coin-drop :countdown)
+      (do
+        ; TODO: reduce duplication
+        ; TODO: draw border
+
+        ; Walls: left, right.
+        (let [w (ceil (world-to-screen-size physics/coin-slot-wall-width))
+              h (ceil (world-to-screen-size physics/coin-slot-wall-height))
+              p (world-to-screen-position (cpp/b2Vec2 physics/coin-slot-left-wall-pos-x
+                                                      physics/coin-slot-left-wall-pos-y))]
+          (cpp/DrawRectangle (ceil (- (:x p) (/ w 2)))
+                             (ceil (- (:y p) (/ h 2)))
+                             w
+                             h
+                             border-color))
+        (let [w (ceil (world-to-screen-size physics/coin-slot-wall-width))
+              h (ceil (world-to-screen-size physics/coin-slot-wall-height))
+              p (world-to-screen-position (cpp/b2Vec2 physics/coin-slot-right-wall-pos-x
+                                                      physics/coin-slot-right-wall-pos-y))]
+          (cpp/DrawRectangle (ceil (- (:x p) (/ w 2)))
+                             (ceil (- (:y p) (/ h 2)))
+                             w
+                             h
+                             border-color))
+
+        ; Sensor.
+        (let [w (ceil (world-to-screen-size physics/coin-slot-width))
+              h (ceil (world-to-screen-size physics/coin-slot-sensor-height))
+              p (world-to-screen-position (cpp/b2Vec2 physics/coin-slot-sensor-pos-x
+                                                      physics/coin-slot-sensor-pos-y))]
+          (cpp/DrawRectangle (ceil (- (:x p) (/ w 2)))
+                             (ceil (- (:y p) (/ h 2)))
+                             w
+                             h
+                             bucket-border-color-top))
+
+        nil)
+
+      (:playing :paused :game-over)
+      (do
+        ; Bucket: background, top border, right border.
+        (cpp/DrawRectangle (+ border-padding-x border-thickness)
+                           (- screen-height border-thickness bucket-height)
+                           bucket-width
+                           bucket-height
+                           bucket-color)
+        (cpp/DrawRectangle (+ border-padding-x border-thickness bucket-width (- bucket-border-thickness))
+                           (- screen-height border-thickness bucket-height)
+                           bucket-border-thickness
+                           bucket-height
+                           bucket-border-color-right)
+        (cpp/DrawRectangle (+ border-padding-x border-thickness)
+                           (- screen-height border-thickness bucket-height)
+                           bucket-width
+                           bucket-border-thickness
+                           bucket-border-color-top)
+        nil))
+  nil))
 
 (defn render-pieces! [state]
   (let [timer (cpp/GetTime)]
@@ -300,12 +342,12 @@
   nil)
 
 (defn render-world! [state]
-  (render-debug-world! state)
+  #_(render-debug-world! state)
 
   ; TODO: render coin drop playspace
-  #_(render-playspace! state)
-  #_(render-claw! state)
-  #_(render-pieces! state)
+  (render-claw! state)
+  (render-pieces! state)
+  (render-playspace! state)
   nil)
 
 (defn render-ui! [state]

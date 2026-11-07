@@ -88,7 +88,20 @@
 (def coin-slot-sensor-height bucket-sensor-height)
 
 (def coin-slot-wall-width (/ (- world-width coin-slot-width) 2.0))
-(def coin-slot-wall-height (* world-height 0.25))
+(def coin-slot-wall-height bucket-wall-height)
+
+(def coin-slot-left-wall-pos-x (+ (/ world-width -2)
+                                  (/ coin-slot-wall-width 2)))
+(def coin-slot-left-wall-pos-y (+ (/ world-height -2)
+                                  (/ coin-slot-wall-height 2)))
+(def coin-slot-right-wall-pos-x (- (/ world-width 2)
+                                   (/ coin-slot-wall-width 2)))
+(def coin-slot-right-wall-pos-y (+ (/ world-height -2)
+                                   (/ coin-slot-wall-height 2)))
+
+(def coin-slot-sensor-pos-x 0.0)
+(def coin-slot-sensor-pos-y (+ (/ world-height -2.0)
+                               (/ coin-slot-sensor-height 2.0)))
 
 ; This controls the number of sub-steps that box2d does per tick.
 ; More sub-steps will result in more precision.
@@ -147,10 +160,8 @@
 (defn create-coin-drop-playspace! [^(:* b2WorldId) world-id]
   ; Token sensor.
   (let [body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position body-def)
-                 (cpp/b2Vec2 0
-                             (+ (/ world-height -2.0)
-                                (/ coin-slot-sensor-height 2.0))))
+        _ (cpp/= (.-position body-def) (cpp/b2Vec2 coin-slot-sensor-pos-x
+                                                   coin-slot-sensor-pos-y))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         box (cpp/b2MakeBox (/ coin-slot-width 2.0)
                            (/ coin-slot-sensor-height 2.0))
@@ -161,11 +172,8 @@
 
   ; Left wall.
   (let [body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position body-def)
-                 (cpp/b2Vec2 (+ (/ world-width -2)
-                                (/ coin-slot-wall-width 2))
-                             (+ (/ world-height -2)
-                                (/ coin-slot-wall-height 2))))
+        _ (cpp/= (.-position body-def) (cpp/b2Vec2 coin-slot-left-wall-pos-x
+                                                   coin-slot-left-wall-pos-y))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         box (cpp/b2MakeBox (/ coin-slot-wall-width 2.0)
                            (/ coin-slot-wall-height 2.0))
@@ -174,11 +182,8 @@
 
   ; Right wall.
   (let [body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position body-def)
-                 (cpp/b2Vec2 (- (/ world-width 2)
-                                (/ coin-slot-wall-width 2))
-                             (+ (/ world-height -2)
-                                (/ coin-slot-wall-height 2))))
+        _ (cpp/= (.-position body-def) (cpp/b2Vec2 coin-slot-right-wall-pos-x
+                                                   coin-slot-right-wall-pos-y))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         box (cpp/b2MakeBox (/ coin-slot-wall-width 2.0)
                            (/ coin-slot-wall-height 2.0))
