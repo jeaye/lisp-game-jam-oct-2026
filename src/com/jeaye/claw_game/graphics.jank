@@ -344,7 +344,6 @@
 (defn render-world! [state]
   #_(render-debug-world! state)
 
-  ; TODO: render coin drop playspace
   (render-claw! state)
   (render-pieces! state)
   (render-playspace! state)
