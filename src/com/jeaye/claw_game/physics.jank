@@ -278,8 +278,6 @@
      :bonus? bonus?
      :body-id (cpp/box (cpp/new b2BodyId body-id))}))
 
-; TODO: make shape definitions more configurable
-; TODO: More shapes? Star?
 ; TODO: reduce duplication with body creation
 (defn create-pieces! [world-id]
   (let [shape-def (cpp/b2DefaultShapeDef)

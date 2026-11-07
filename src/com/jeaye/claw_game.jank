@@ -22,6 +22,7 @@
     (reset! last-error e)))
 
 ; TODO: cleanup state transition, too spread out right now
+; TODO: new coin drop scene
 (defn reset-state! [state]
   (physics/destroy-world! (get-in state [:physics :world-id]))
   {:mode :coin-drop ; :coin-drop, :countdown, :playing, :paused, :game-over
@@ -62,7 +63,6 @@
     (cond-> state
       true (assoc :time-remaining time-remaining)
       ; Game time complete. Game over.
-      ; TODO: stop physics or disable collection on game over
       (zero? time-remaining) (assoc :mode :game-over))))
 
 (defn update-combo-time-remaining [state]
@@ -155,8 +155,6 @@
   (cpp/InitWindow 960 540 "janky claw")
   (cpp/SetTargetFPS 60)
   (cpp/rlEnableSmoothLines)
-  ; TODO: restore?
-  ; (cpp/HideCursor)
 
   (swap! global-state reset-state!)
   (while (cpp/! (cpp/WindowShouldClose))

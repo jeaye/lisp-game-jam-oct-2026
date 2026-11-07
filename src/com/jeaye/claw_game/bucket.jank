@@ -11,7 +11,6 @@
   (let [score score-base ; base piece score
 
         ; Bonus piece scoring. Bonus points, bonus time.
-        ; TODO: consider requiring a new bonus shape type on re-select
         {:keys [bonus-score-multiplier
                 bonus-time-remaining]
          :or {bonus-score-multiplier 1
@@ -41,5 +40,4 @@
 (defn on-collect [state piece]
   (let [state (add-score state piece)]
     ; TODO: add end game metrics (scored, bonus, max combo, etc.)
-    ; TODO: spawn fx
     state))

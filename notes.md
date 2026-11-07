@@ -9,11 +9,11 @@
     * Build up thrust bar based on scoring?
   * [done] Bonus piece, rather than type
     * Bonus shouldn't be something you get without trying
-  * [bryan] Non-uniform pieces
-    * Stars
-    * Moon
+  * [done] Non-uniform pieces
     * [done] Large shapes (each shape has variance)
     * [done] Long rectangles
+    * Stars
+    * Moon
     * Compound shapes
   * [done] Dump more pieces when the piece count gets low
     * Percentage change to spawn new piece
@@ -25,24 +25,24 @@
     * Spiky pieces that stick to the claw
     * Heavy pieces which weigh down the claw
 * [bryan] UI
-  * Maybe gamepad selection?
+  * [done] Maybe gamepad selection?
   * Coin drop scene
     * ENTER A COIN TO START
-  * Countdown before gameplay (3 2 1)
+  * [done] Countdown before gameplay (3 2 1)
     * Can still move claw during this?
-  * Gameplay
+  * [done] Gameplay
     * Score and time at the top of the playspace
-  * Pause menu
+  * [done] Pause menu
   * Game over
     * Show stats
       * Time spent
-      * Score
+      * [done] Score
       * Pieces collected
       * Largest combo
       * Thrusts used
       * Bonuses
       * Bombs defused / exploded
-    * Restarting goes back to coin drop
+    * [done] Restarting goes back to coin drop
 * [done] Rendering
   * Claw
   * Pieces
