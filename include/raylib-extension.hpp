@@ -3,11 +3,8 @@
 #include <math.h>
 #include <raylib.h>
 
-void DrawRectangleProLinesEx(Rectangle rec,
-                             Vector2 origin,
-                             float rotation,
-                             float lineThick,
-                             Color color)
+inline void
+DrawRectangleProLinesEx(Rectangle rec, Vector2 origin, float rotation, float lineThick, Color color)
 {
   if((lineThick > rec.width) || (lineThick > rec.height))
   {
@@ -63,7 +60,7 @@ void DrawRectangleProLinesEx(Rectangle rec,
                    color);
 }
 
-void DrawCircleLinesEx(Vector2 center, float radius, float lineThick, Color color)
+inline void DrawCircleLinesEx(Vector2 center, float radius, float lineThick, Color color)
 {
   if(lineThick <= 0.0f || radius <= 0.0f)
   {
@@ -82,7 +79,7 @@ void DrawCircleLinesEx(Vector2 center, float radius, float lineThick, Color colo
   DrawRing(center, radius - lineThick, radius, 0.0f, 360.0f, 0, color);
 }
 
-void DrawTriangleLinesEx(Vector2 v1, Vector2 v2, Vector2 v3, float lineThick, Color color)
+inline void DrawTriangleLinesEx(Vector2 v1, Vector2 v2, Vector2 v3, float lineThick, Color color)
 {
   if(lineThick <= 0.0f)
   {
