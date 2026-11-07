@@ -42,19 +42,20 @@
 (def claw-tip-max-open-angle (degrees-to-radians 90.0))
 (def claw-tip-max-close-angle (degrees-to-radians -90.0))
 ; How snappy is the claw tip open/close, following the left/right triggers?
-(def claw-tip-track-gain 15.0)
+(def claw-tip-track-gain 10.0)
 (def claw-tip-max-speed 9.0)
 (def claw-tip-density 1.0)
-(def claw-tip-mass 0.3)
+(def claw-tip-mass 0.5)
 (def claw-tip-friction 0.8)
+(def claw-tip-max-torque 8.0)
 
 ; How much can the claw rotate, in either direction, using the right stick?
 (def claw-max-rotation-angle (degrees-to-radians 45.0))
 ; How snappy is the claw rotation, following the right stick?
-(def claw-carriage-track-gain 3.0)
+(def claw-carriage-track-gain 6.0)
 (def claw-carriage-rotation-max-speed 4.0)
 ; How fast does the claw move, using the left stick?
-(def claw-carriage-max-speed 2.5)
+(def claw-carriage-max-speed 4.0)
 (def claw-carriage-density 5.0)
 (def claw-carriage-mass 2.0)
 (def claw-carriage-friction 0.3)
@@ -512,7 +513,7 @@
             (cpp/= (.-upperAngle joint-def) upper)
 
             (cpp/= (.-enableMotor joint-def) true)
-            (cpp/= (.-maxMotorTorque joint-def) 3.0)
+            (cpp/= (.-maxMotorTorque joint-def) claw-tip-max-torque)
             (cpp/= (.-motorSpeed joint-def) 0.0)
 
             (cpp/= (.-enableSpring joint-def) false))
