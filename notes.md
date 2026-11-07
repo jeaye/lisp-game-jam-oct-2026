@@ -24,7 +24,7 @@
       * Can be bucketed for points, deactivating it
     * Spiky pieces that stick to the claw
     * Heavy pieces which weigh down the claw
-* [bryan] UI
+* [done] UI
   * [done] Maybe gamepad selection?
   * Coin drop scene
     * ENTER A COIN TO START
@@ -34,10 +34,10 @@
   * [done] Gameplay
     * Score and time at the top of the playspace
   * [done] Pause menu
-  * Game over
+  * [done] Game over
     * Show stats
       * Time spent
-      * [done] Score
+      * Score
       * Pieces collected
       * Largest combo
       * Thrusts used
