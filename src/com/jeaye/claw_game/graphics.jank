@@ -68,6 +68,8 @@
 (def claw-arm-thickness 6.0)
 (def piece-line-thickness 2.0)
 
+(def coin-slot-sensor-color bucket-border-color-top)
+
 (defn ceil [x]
   (let [n (long x)]
     (if (> x n) (inc n) n)))
@@ -169,6 +171,17 @@
   (render-claw-arm! state :left)
   (render-claw-arm! state :right))
 
+; Render a rect given world space position and size.
+(defn render-world-rect! [{:keys [width height position color]}]
+  (let [w (ceil (world-to-screen-size width))
+        h (ceil (world-to-screen-size height))
+        {:keys [x y]} (world-to-screen-position position)]
+    (cpp/DrawRectangle (ceil (- x (/ w 2)))
+                       (ceil (- y (/ h 2)))
+                       w
+                       h
+                       color)))
+
 (defn render-playspace! [state]
   (let [screen-width (cpp/GetScreenWidth)
         screen-height (cpp/GetScreenHeight)]
@@ -198,39 +211,21 @@
     (case (:mode state)
       (:coin-drop :countdown)
       (do
-        ; TODO: reduce duplication
-        ; TODO: draw border
-
         ; Walls: left, right.
-        (let [w (ceil (world-to-screen-size physics/coin-slot-wall-width))
-              h (ceil (world-to-screen-size physics/coin-slot-wall-height))
-              p (world-to-screen-position (cpp/b2Vec2 physics/coin-slot-left-wall-pos-x
-                                                      physics/coin-slot-left-wall-pos-y))]
-          (cpp/DrawRectangle (ceil (- (:x p) (/ w 2)))
-                             (ceil (- (:y p) (/ h 2)))
-                             w
-                             h
-                             border-color))
-        (let [w (ceil (world-to-screen-size physics/coin-slot-wall-width))
-              h (ceil (world-to-screen-size physics/coin-slot-wall-height))
-              p (world-to-screen-position (cpp/b2Vec2 physics/coin-slot-right-wall-pos-x
-                                                      physics/coin-slot-right-wall-pos-y))]
-          (cpp/DrawRectangle (ceil (- (:x p) (/ w 2)))
-                             (ceil (- (:y p) (/ h 2)))
-                             w
-                             h
-                             border-color))
+        (render-world-rect! {:width physics/coin-slot-wall-width
+                             :height physics/coin-slot-wall-height
+                             :position physics/coin-slot-wall-left-pos
+                             :color border-color})
+        (render-world-rect! {:width physics/coin-slot-wall-width
+                             :height physics/coin-slot-wall-height
+                             :position physics/coin-slot-wall-right-pos
+                             :color border-color})
 
         ; Sensor.
-        (let [w (ceil (world-to-screen-size physics/coin-slot-width))
-              h (ceil (world-to-screen-size physics/coin-slot-sensor-height))
-              p (world-to-screen-position (cpp/b2Vec2 physics/coin-slot-sensor-pos-x
-                                                      physics/coin-slot-sensor-pos-y))]
-          (cpp/DrawRectangle (ceil (- (:x p) (/ w 2)))
-                             (ceil (- (:y p) (/ h 2)))
-                             w
-                             h
-                             bucket-border-color-top))
+        (render-world-rect! {:width physics/coin-slot-width
+                             :height physics/coin-slot-sensor-height
+                             :position physics/coin-slot-sensor-pos
+                             :color coin-slot-sensor-color})
 
         nil)
 

@@ -21,7 +21,6 @@
     (println e)
     (reset! last-error e)))
 
-; TODO: cleanup state transition, too spread out right now
 (defn reset-state! [state]
   (physics/destroy-world! (get-in state [:physics :world-id]))
   {:mode :coin-drop ; :coin-drop, :countdown, :playing, :paused, :game-over
@@ -30,12 +29,19 @@
    ; accepting the first gamepad with any input as the active gamepad index.
    :gamepad-index -1
 
+   ; Countdown time remaining when transitioning between coin drop and playing.
+   :countdown-time-remaining 3 ; seconds
+
+   ; Time remaining during :playing mode.
+   :time-remaining 60 ; seconds
+
+   ; Total accumulated score during :playing mode.
    :score 0
-   :time-remaining 0 ; seconds
+
+   ; Combo scoring state tracker.
    :combo-time-remaining 0 ; seconds
    :combo-score-multiplier 1
    :combo-count 0
-   :countdown-time-remaining 0 ; seconds
 
    ; :physics {:world-id ^(:* b2WorldId) _
    ;           :pieces {b2BodyId*... {:type [:enum bucket/piece-types]
@@ -55,39 +61,34 @@
   (swap! global-state (fn [state]
                         (update state :queue conj reset-state!))))
 
+(defn update-timer [timer]
+  (max (- timer (cpp/GetFrameTime))
+       0))
+
 (defn update-time-remaining [state]
-  (let [time-remaining (-> (:time-remaining state)
-                           (- (cpp/GetFrameTime))
-                           (max 0))]
-    (cond-> state
-      true (assoc :time-remaining time-remaining)
+  (let [state (update state :time-remaining update-timer)]
+    (if (zero? (:time-remaining state))
       ; Game time complete. Game over.
-      (zero? time-remaining) (assoc :mode :game-over))))
+      (assoc state :mode :game-over)
+      state)))
 
 (defn update-combo-time-remaining [state]
-  (let [time-remaining (-> (:combo-time-remaining state)
-                           (- (cpp/GetFrameTime))
-                           (max 0))]
-    (cond-> state
-      true (assoc :combo-time-remaining time-remaining)
+  (let [state (update state :combo-time-remaining update-timer)]
+    (if (zero? (:combo-time-remaining state))
       ; Combo time complete. Reset the combo accumulators.
-      (zero? time-remaining) (assoc :combo-score-multiplier 1
-                                    :combo-count 0))))
+      (assoc state :combo-score-multiplier 1
+                   :combo-count 0)
+      state)))
 
 (defn update-countdown-time-remaining [state]
-  (let [time-remaining (-> (:countdown-time-remaining state)
-                           (- (cpp/GetFrameTime))
-                           (max 0))
-        state (assoc state :countdown-time-remaining time-remaining)
-        state (if (zero? time-remaining)
-                ; Countdown timer complete. Start the game.
-                (do
-                  (physics/destroy-world! (get-in state [:physics :world-id]))
-                  (assoc state :physics (physics/create-world! :playing)
-                               :time-remaining 60
-                               :mode :playing))
-                state)]
-    state))
+  (let [state (update state :countdown-time-remaining update-timer)]
+    (if (zero? (:countdown-time-remaining state))
+      ; Countdown timer complete. Start the game.
+      (do
+        (physics/destroy-world! (get-in state [:physics :world-id]))
+        (assoc state :physics (physics/create-world! :playing)
+                     :mode :playing))
+      state)))
 
 (defn update-paused [state]
   (if (gamepad/is-pause-button-pressed (:gamepad-index state))

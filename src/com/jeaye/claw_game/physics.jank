@@ -90,23 +90,23 @@
 (def token-radius (* base-circle-size token-size))
 
 (def coin-slot-width (* token-radius 2.0 1.25))
+
+(def coin-slot-sensor-width coin-slot-width)
 (def coin-slot-sensor-height bucket-sensor-height)
+(def coin-slot-sensor-pos {:x 0.0
+                           :y (+ (/ world-height -2.0)
+                                 (/ coin-slot-sensor-height 2.0))})
 
 (def coin-slot-wall-width (/ (- world-width coin-slot-width) 2.0))
 (def coin-slot-wall-height bucket-wall-height)
-
-(def coin-slot-left-wall-pos-x (+ (/ world-width -2)
-                                  (/ coin-slot-wall-width 2)))
-(def coin-slot-left-wall-pos-y (+ (/ world-height -2)
-                                  (/ coin-slot-wall-height 2)))
-(def coin-slot-right-wall-pos-x (- (/ world-width 2)
-                                   (/ coin-slot-wall-width 2)))
-(def coin-slot-right-wall-pos-y (+ (/ world-height -2)
-                                   (/ coin-slot-wall-height 2)))
-
-(def coin-slot-sensor-pos-x 0.0)
-(def coin-slot-sensor-pos-y (+ (/ world-height -2.0)
-                               (/ coin-slot-sensor-height 2.0)))
+(def coin-slot-wall-left-pos {:x (+ (/ world-width -2)
+                                    (/ coin-slot-wall-width 2))
+                              :y (+ (/ world-height -2)
+                                    (/ coin-slot-wall-height 2))})
+(def coin-slot-wall-right-pos {:x (- (/ world-width 2)
+                                     (/ coin-slot-wall-width 2))
+                               :y (+ (/ world-height -2)
+                                     (/ coin-slot-wall-height 2))})
 
 ; This controls the number of sub-steps that box2d does per tick.
 ; More sub-steps will result in more precision.
@@ -165,10 +165,10 @@
 (defn create-coin-drop-playspace! [^(:* b2WorldId) world-id]
   ; Token sensor.
   (let [body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position body-def) (cpp/b2Vec2 coin-slot-sensor-pos-x
-                                                   coin-slot-sensor-pos-y))
+        _ (cpp/= (.-position body-def) (cpp/b2Vec2 (:x coin-slot-sensor-pos)
+                                                   (:y coin-slot-sensor-pos)))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        box (cpp/b2MakeBox (/ coin-slot-width 2.0)
+        box (cpp/b2MakeBox (/ coin-slot-sensor-width 2.0)
                            (/ coin-slot-sensor-height 2.0))
         shape-def (cpp/b2DefaultShapeDef)
         _ (cpp/= (.-isSensor shape-def) true)
@@ -177,8 +177,8 @@
 
   ; Left wall.
   (let [body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position body-def) (cpp/b2Vec2 coin-slot-left-wall-pos-x
-                                                   coin-slot-left-wall-pos-y))
+        _ (cpp/= (.-position body-def) (cpp/b2Vec2 (:x coin-slot-wall-left-pos)
+                                                   (:y coin-slot-wall-left-pos)))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         box (cpp/b2MakeBox (/ coin-slot-wall-width 2.0)
                            (/ coin-slot-wall-height 2.0))
@@ -187,8 +187,8 @@
 
   ; Right wall.
   (let [body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position body-def) (cpp/b2Vec2 coin-slot-right-wall-pos-x
-                                                   coin-slot-right-wall-pos-y))
+        _ (cpp/= (.-position body-def) (cpp/b2Vec2 (:x coin-slot-wall-right-pos)
+                                                   (:y coin-slot-wall-right-pos)))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         box (cpp/b2MakeBox (/ coin-slot-wall-width 2.0)
                            (/ coin-slot-wall-height 2.0))
@@ -783,8 +783,7 @@
                   (case (:type piece)
                     ; Token score. Start the game.
                     :token
-                    (assoc state :mode :countdown
-                                 :countdown-time-remaining 3)
+                    (assoc state :mode :countdown)
 
                     ; Standard piece type.
                     (let [; Score the piece in the bucket.
