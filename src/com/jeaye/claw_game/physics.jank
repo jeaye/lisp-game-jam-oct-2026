@@ -218,8 +218,7 @@
         circle (cpp/b2Circle (cpp/b2Vec2 0.0 0.0) (* base-circle-size size))
         body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
-        _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
-                                                   (rand (/ world-height -2))))
+        _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))]
     {:type :circle
@@ -234,8 +233,7 @@
         circle (cpp/b2Circle (cpp/b2Vec2 0.0 0.0) (* base-circle-size size))
         body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-type body-def) cpp/b2_dynamicBody)
-        _ (cpp/= (.-position body-def) (cpp/b2Vec2 (rand (/ world-width 2))
-                                                   (rand (/ world-height -2))))
+        _ (cpp/= (.-position body-def) (cpp/cast b2Vec2 pos))
         body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
         _ (cpp/b2CreateCircleShape body-id shape-def (cpp/& circle))]
     {:type :token
@@ -503,8 +501,7 @@
                                             central-hub-id right-tip
                                             claw-tip-max-close-angle
                                             claw-tip-max-open-angle
-                                            :right)
-        ]
+                                            :right)]
     {:carriage-id carriage-id
      :central-hub-id central-hub-id
      :central-hub-joint-id central-hub-joint-id
