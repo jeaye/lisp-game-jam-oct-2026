@@ -19,6 +19,7 @@
       perSystem = {
         pkgs,
         inputs',
+        lib,
         ...
       }: let
         # Commons builds these packages, so include their transitive
@@ -39,6 +40,13 @@
           ncurses
           sqlite
         ];
+        # Audio backends. raylib's miniaudio dlopen()s these at runtime, so
+        # they must be on LD_LIBRARY_PATH or it silently falls back to the
+        # Null backend (no sound). Linux only; macOS uses CoreAudio.
+        audioLibs = lib.optionals pkgs.stdenv.hostPlatform.isLinux (with pkgs; [
+          libpulseaudio
+          alsa-lib
+        ]);
       in {
         legacyPackages = pkgs;
         formatter = pkgs.alejandra;
@@ -51,6 +59,7 @@
               inputs'.jank.packages.default
 
               ## Build tools.
+              git-lfs
               cmake
               ninja
               pkg-config
@@ -65,7 +74,13 @@
               ## Debugging.
               gdb
             ]
-            ++ commonsDirect;
+            ++ commonsDirect
+            ++ audioLibs;
+
+          # Append rather than overwrite, in case something else sets it.
+          shellHook = lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
+            export LD_LIBRARY_PATH="${lib.makeLibraryPath audioLibs}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          '';
         };
       };
     };

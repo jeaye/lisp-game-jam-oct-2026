@@ -28,6 +28,7 @@
   * [done] Maybe gamepad selection?
   * Coin drop scene
     * ENTER A COIN TO START
+    * Limit claw Y movement in this scene
   * [done] Countdown before gameplay (3 2 1)
     * Can still move claw during this?
   * [done] Gameplay

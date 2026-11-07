@@ -153,32 +153,45 @@
   (cpp/SetTargetFPS 60)
   (cpp/rlEnableSmoothLines)
 
-  (swap! global-state reset-state!)
-  (while (cpp/! (cpp/WindowShouldClose))
-    (swap! global-state
-           (fn [state]
-             (let [state (update-game state)]
-               (render-game! state)
-               (if (empty? (:queue state))
-                 state
-                 (reduce (fn [state f]
-                           (try
-                             (f state)
-                             (catch jank.runtime.object_ref e
-                               (log-error! (str "queue exception: " (prn e)))
-                               state)
-                             (catch jank.error_ref e
-                               (log-error! (str "queue exception: " (.-message (cpp/* e))))
-                               state)
-                             (catch std.exception e
-                               (log-error! (str "queue exception:" (.what e)))
-                               state)
-                             (catch :default _
-                               (log-error! "queue exception")
-                               state)))
-                         (assoc state :queue [])
-                         (:queue state)))))))
+  (cpp/InitAudioDevice)
 
+  ; This is stored separately from the game state, since we end up resetting
+  ; that all the time and we want to keep the music consistent.
+  (let [music (cpp/LoadMusicStream "resources/arcade-of-shadows.ogg")]
+    (cpp/SetMusicVolume music 0.1)
+    (cpp/PlayMusicStream music)
+
+    (swap! global-state reset-state!)
+    (while (cpp/! (cpp/WindowShouldClose))
+      (swap! global-state
+             (fn [state]
+               (cpp/UpdateMusicStream music)
+
+               (let [state (update-game state)]
+                 (render-game! state)
+                 (if (empty? (:queue state))
+                   state
+                   (reduce (fn [state f]
+                             (try
+                               (f state)
+                               (catch jank.runtime.object_ref e
+                                 (log-error! (str "queue exception: " (prn e)))
+                                 state)
+                               (catch jank.error_ref e
+                                 (log-error! (str "queue exception: " (.-message (cpp/* e))))
+                                 state)
+                               (catch std.exception e
+                                 (log-error! (str "queue exception:" (.what e)))
+                                 state)
+                               (catch :default _
+                                 (log-error! "queue exception")
+                                 state)))
+                           (assoc state :queue [])
+                           (:queue state)))))))
+
+    (cpp/UnloadMusicStream music))
+
+  (cpp/CloseAudioDevice)
   (cpp/CloseWindow))
 
 (comment
