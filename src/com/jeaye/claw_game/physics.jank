@@ -66,7 +66,6 @@
 (def circle-create-count 200)
 (def capsule-create-count 100)
 (def rectangle-create-count 30)
-(def token-size 5)
 (def piece-max-size 2)
 (def bonus-piece-count 10)
 ; Percent chance to spawn a new piece when scoring. (0.4 == 40%)
@@ -82,6 +81,15 @@
 (def piece-density 0.3)
 (def piece-friction 0.4)
 
+(def token-size 5)
+(def token-radius (* base-circle-size token-size))
+
+(def coin-slot-width (* token-radius 2.0 1.25))
+(def coin-slot-sensor-height bucket-sensor-height)
+
+(def coin-slot-wall-width (/ (- world-width coin-slot-width) 2.0))
+(def coin-slot-wall-height (* world-height 0.25))
+
 ; This controls the number of sub-steps that box2d does per tick.
 ; More sub-steps will result in more precision.
 (def sub-step-count 8)
@@ -93,6 +101,112 @@
 
 ; -----------------------------------------------------------------------------
 ; Creation
+
+(defn create-playspace-walls! [^(:* b2WorldId) world-id]
+  (let [left-wall-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position left-wall-body-def) (cpp/b2Vec2 (- (/ world-width -2)
+                                                                (/ wall-width 2))
+                                                             0.0))
+        left-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& left-wall-body-def))
+
+        left-wall-box (cpp/b2MakeBox (/ wall-width 2.0) (/ world-height 2.0))
+        left-wall-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape left-wall-id (cpp/& left-wall-shape-def) (cpp/& left-wall-box))
+
+        right-wall-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position right-wall-body-def) (cpp/b2Vec2 (+ (/ world-width 2)
+                                                                 (/ wall-width 2))
+                                                              0.0))
+        right-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& right-wall-body-def))
+
+        right-wall-box (cpp/b2MakeBox (/ wall-width 2.0) (/ world-height 2.0))
+        right-wall-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape right-wall-id (cpp/& right-wall-shape-def) (cpp/& right-wall-box))
+
+        top-wall-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position top-wall-body-def) (cpp/b2Vec2 0.0
+                                                  (+ (/ world-height 2)
+                                                     (/ wall-width 2))))
+        top-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& top-wall-body-def))
+
+        top-wall-box (cpp/b2MakeBox (+ (/ world-width 2.0) wall-width) (/ wall-width 2.0))
+        top-wall-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape top-wall-id (cpp/& top-wall-shape-def) (cpp/& top-wall-box))
+
+        bottom-wall-body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position bottom-wall-body-def) (cpp/b2Vec2 0.0
+                                                               (- (/ world-height -2)
+                                                                  (/ wall-width 2))))
+        bottom-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bottom-wall-body-def))
+
+        bottom-wall-box (cpp/b2MakeBox (+ (/ world-width 2.0) wall-width) (/ wall-width 2.0))
+        bottom-wall-shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/b2CreatePolygonShape bottom-wall-id (cpp/& bottom-wall-shape-def) (cpp/& bottom-wall-box))]
+    ))
+
+(defn create-coin-drop-playspace! [^(:* b2WorldId) world-id]
+  ; Token sensor.
+  (let [body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position body-def)
+                 (cpp/b2Vec2 0
+                             (+ (/ world-height -2.0)
+                                (/ coin-slot-sensor-height 2.0))))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        box (cpp/b2MakeBox (/ coin-slot-width 2.0)
+                           (/ coin-slot-sensor-height 2.0))
+        shape-def (cpp/b2DefaultShapeDef)
+        _ (cpp/= (.-isSensor shape-def) true)
+        _ (cpp/= (.-enableSensorEvents shape-def) true)]
+    (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box)))
+
+  ; Left wall.
+  (let [body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position body-def)
+                 (cpp/b2Vec2 (+ (/ world-width -2)
+                                (/ coin-slot-wall-width 2))
+                             (+ (/ world-height -2)
+                                (/ coin-slot-wall-height 2))))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        box (cpp/b2MakeBox (/ coin-slot-wall-width 2.0)
+                           (/ coin-slot-wall-height 2.0))
+        shape-def (cpp/b2DefaultShapeDef)]
+    (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box)))
+
+  ; Right wall.
+  (let [body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position body-def)
+                 (cpp/b2Vec2 (- (/ world-width 2)
+                                (/ coin-slot-wall-width 2))
+                             (+ (/ world-height -2)
+                                (/ coin-slot-wall-height 2))))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        box (cpp/b2MakeBox (/ coin-slot-wall-width 2.0)
+                           (/ coin-slot-wall-height 2.0))
+        shape-def (cpp/b2DefaultShapeDef)]
+    (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box)))
+
+  ; TODO: add wall slope
+  #_(let [shape-def (cpp/b2DefaultShapeDef)
+        triangle-points (#cpp (:array b2Vec2 3))
+        size 20
+        slope 0.04 ; less = steeper
+        ; TODO: We shouldn't do this for every triangle we create.
+        ; Do it once and then put it into a var or something.
+        _ (cpp/= (cpp/aget triangle-points 0) (cpp/b2Vec2 (* -0.1 size) (* 0.115470 size)))
+        _ (cpp/= (cpp/aget triangle-points 1) (cpp/b2Vec2 (* -0.1 size) (* -0.057735 size)))
+        _ (cpp/= (cpp/aget triangle-points 2) (cpp/b2Vec2 (* (+ -0.1 slope) size) (* -0.057735 size)))
+
+        triangle-hull (cpp/b2ComputeHull triangle-points 3)
+        triangle (cpp/b2MakePolygon (cpp/& triangle-hull) 0.0)
+        body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position body-def)
+                 (cpp/b2Vec2 0.0
+                             0.0))
+        ;- (cpp/= (.-rotation body-def) (cpp/b2MakeRot (degrees-to-radians 30)))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
+        _ (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& triangle))
+        ])
+  nil)
 
 (defn create-playspace! [^(:* b2WorldId) world-id]
   (let [bucket-body-def (cpp/b2DefaultBodyDef)
@@ -119,48 +233,8 @@
 
         bucket-wall-box (cpp/b2MakeBox (/ bucket-wall-width 2.0) (/ bucket-wall-height 2.0))
         bucket-wall-shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/b2CreatePolygonShape bucket-wall-id (cpp/& bucket-wall-shape-def) (cpp/& bucket-wall-box))
-
-        left-wall-body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position left-wall-body-def) (cpp/b2Vec2 (- (/ world-width -2)
-                                                                (/ wall-width 2))
-                                                             0.0))
-        left-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& left-wall-body-def))
-
-        left-wall-box (cpp/b2MakeBox (/ wall-width 2.0) (/ world-height 2.0))
-        left-wall-shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/b2CreatePolygonShape left-wall-id (cpp/& left-wall-shape-def) (cpp/& left-wall-box))
-
-        right-wall-body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position right-wall-body-def) (cpp/b2Vec2 (+ (/ world-width 2)
-                                                                 (/ wall-width 2))
-                                                              0.0))
-        right-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& right-wall-body-def))
-
-        right-wall-box (cpp/b2MakeBox (/ wall-width 2.0) (/ world-height 2.0))
-        right-wall-shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/b2CreatePolygonShape right-wall-id (cpp/& right-wall-shape-def) (cpp/& right-wall-box))
-
-        top-wall-body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position top-wall-body-def) (cpp/b2Vec2 0.0
-                                                               (+ (/ world-height 2)
-                                                                  (/ wall-width 2))))
-        top-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& top-wall-body-def))
-
-        top-wall-box (cpp/b2MakeBox (+ (/ world-width 2.0) wall-width) (/ wall-width 2.0))
-        top-wall-shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/b2CreatePolygonShape top-wall-id (cpp/& top-wall-shape-def) (cpp/& top-wall-box))
-
-        bottom-wall-body-def (cpp/b2DefaultBodyDef)
-        _ (cpp/= (.-position bottom-wall-body-def) (cpp/b2Vec2 0.0
-                                                               (- (/ world-height -2)
-                                                                  (/ wall-width 2))))
-        bottom-wall-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& bottom-wall-body-def))
-
-        bottom-wall-box (cpp/b2MakeBox (+ (/ world-width 2.0) wall-width) (/ wall-width 2.0))
-        bottom-wall-shape-def (cpp/b2DefaultShapeDef)
-        _ (cpp/b2CreatePolygonShape bottom-wall-id (cpp/& bottom-wall-shape-def) (cpp/& bottom-wall-box))]
-    ))
+        _ (cpp/b2CreatePolygonShape bucket-wall-id (cpp/& bucket-wall-shape-def) (cpp/& bucket-wall-box))]
+    nil))
 
 (defn random-piece-size! [bonus?]
   (cond-> (+ 1.0 (rand (- piece-max-size 1)))
@@ -517,16 +591,31 @@
         _ (cpp/= (.-density shape-def) piece-density)
         _ (cpp/= (.-friction (.-material shape-def)) piece-friction)
         _ (cpp/= (.-categoryBits (.-filter shape-def)) (int (:piece filters)))
-        shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))]
-    (create-token-piece! world-id shape-def-boxed (rand-pos))))
+        shape-def-boxed (cpp/box (cpp/new b2ShapeDef shape-def))
+        ; Spawn on either the left or right side.
+        pos {:x (cond-> (+ (/ world-width -2.0) 0.8)
+                  (zero? (rand-int 2)) -)
+             :y (* world-height 0.2)}]
+    (create-token-piece! world-id shape-def-boxed pos)))
 
-(defn create-world! []
+(defn create-world! [mode]
   (let [world-def (cpp/b2DefaultWorldDef)
         _ (cpp/= (.-gravity world-def) (cpp/b2Vec2 0.0 world-gravity))
         world-id (cpp/b2CreateWorld (cpp/& world-def))
         world-id-box (cpp/box (cpp/new b2WorldId world-id))
-        _ (create-playspace! world-id-box)
-        pieces [(create-token! world-id-box)]]
+        _ (create-playspace-walls! world-id-box)
+        pieces (case mode
+                 :coin-drop
+                 (do
+                   ; Create coin drop playspace with one token.
+                   (create-coin-drop-playspace! world-id-box)
+                   [(create-token! world-id-box)])
+
+                 :playing
+                 (do
+                   ; Create main playspace with many pieces.
+                   (create-playspace! world-id-box)
+                   (create-pieces! world-id-box)))]
     (assoc (create-claw! world-id-box)
            :pieces (zipmap (map :body-id pieces) pieces)
            :world-id world-id-box)))

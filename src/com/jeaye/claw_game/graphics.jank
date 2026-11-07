@@ -300,11 +300,12 @@
   nil)
 
 (defn render-world! [state]
-  #_(render-debug-world! state)
+  (render-debug-world! state)
 
-  (render-playspace! state)
-  (render-claw! state)
-  (render-pieces! state)
+  ; TODO: render coin drop playspace
+  #_(render-playspace! state)
+  #_(render-claw! state)
+  #_(render-pieces! state)
   nil)
 
 (defn render-ui! [state]
@@ -326,7 +327,7 @@
     ; Ticker text.
     ; TODO: consider subtitle (eg. controls, press x to restart, etc.)
     (when-some [ticker-text (cond
-                              (= :coin-drop (:mode state)) "INSERT A COIN TO PLAY"
+                              (= :coin-drop (:mode state)) "INSERT A COIN TO START"
                               (= :countdown (:mode state)) (str (ceil (:countdown-time-remaining state)))
                               (= :playing (:mode state)) (format "TIME: {} --- SCORE: {}"
                                                                 (ceil (:time-remaining state))

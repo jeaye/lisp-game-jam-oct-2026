@@ -22,7 +22,6 @@
     (reset! last-error e)))
 
 ; TODO: cleanup state transition, too spread out right now
-; TODO: new coin drop scene
 (defn reset-state! [state]
   (physics/destroy-world! (get-in state [:physics :world-id]))
   {:mode :coin-drop ; :coin-drop, :countdown, :playing, :paused, :game-over
@@ -41,7 +40,7 @@
    ; :physics {:world-id ^(:* b2WorldId) _
    ;           :pieces {b2BodyId*... {:type [:enum bucket/piece-types]
    ;                                  :bonus? :boolean}}}
-   :physics (physics/create-world!)
+   :physics (physics/create-world! :coin-drop)
 
    ; Box2D can't be changed from another thread, so if we want to re-create the world, we
    ; need to do it on the main thread. Since each REPL command runs off the main thread,
@@ -81,14 +80,12 @@
                            (max 0))
         state (assoc state :countdown-time-remaining time-remaining)
         state (if (zero? time-remaining)
-                ; Countdown timer complete. Spawn the pieces. Start the game.
-                (let [world-id (get-in state [:physics :world-id])
-                      pieces (physics/create-pieces! world-id)
-                      pieces-map (zipmap (map :body-id pieces) pieces)]
-                  (-> state
-                      (update-in [:physics :pieces] merge pieces-map)
-                      (assoc :mode :playing
-                             :time-remaining 60)))
+                ; Countdown timer complete. Start the game.
+                (do
+                  (physics/destroy-world! (get-in state [:physics :world-id]))
+                  (assoc state :physics (physics/create-world! :playing)
+                               :time-remaining 60
+                               :mode :playing))
                 state)]
     state))
 
