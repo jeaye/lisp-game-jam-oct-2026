@@ -68,6 +68,14 @@
 (def claw-arm-thickness 6.0)
 (def piece-line-thickness 2.0)
 
+(defn ceil [x]
+  (let [n (long x)]
+    (if (> x n) (inc n) n)))
+
+(defn paused? [state]
+  (contains? #{:paused :game-over}
+             (:mode state)))
+
 (defn world-to-screen-position [world-pos]
   (let [orig-x (/ (cpp/GetScreenWidth) 2.0)
         orig-y (/ (cpp/GetScreenHeight) 2.0)
@@ -161,9 +169,51 @@
   (render-claw-arm! state :left)
   (render-claw-arm! state :right))
 
-(defn render-world! [state]
-  ;(render-debug-world! state)
-  (render-claw! state)
+(defn render-playspace! [state]
+  (let [screen-width (cpp/GetScreenWidth)
+        screen-height (cpp/GetScreenHeight)]
+
+    ; Playspace bucket: background, top border, right border.
+    (cpp/DrawRectangle (+ border-padding-x border-thickness)
+                       (- screen-height border-thickness bucket-height)
+                       bucket-width
+                       bucket-height
+                       bucket-color)
+    (cpp/DrawRectangle (+ border-padding-x border-thickness bucket-width (- bucket-border-thickness))
+                       (- screen-height border-thickness bucket-height)
+                       bucket-border-thickness
+                       bucket-height
+                       bucket-border-color-right)
+    (cpp/DrawRectangle (+ border-padding-x border-thickness)
+                       (- screen-height border-thickness bucket-height)
+                       bucket-width
+                       bucket-border-thickness
+                       bucket-border-color-top)
+
+    ; Playspace borders: right, left, top, bottom.
+    (cpp/DrawRectangle border-padding-x
+                       border-padding-y
+                       border-thickness
+                       screen-height
+                       border-color)
+    (cpp/DrawRectangle (- screen-width border-padding-x border-thickness)
+                       border-padding-y
+                       border-thickness
+                       screen-height
+                       border-color)
+    (cpp/DrawRectangle border-padding-x
+                       border-padding-y
+                       (- screen-width (* border-padding-x 2))
+                       border-thickness
+                       border-color)
+    (cpp/DrawRectangle border-padding-x
+                       (- screen-height border-padding-y border-thickness)
+                       (- screen-width (* border-padding-x 2))
+                       border-thickness
+                       border-color))
+  nil)
+
+(defn render-pieces! [state]
   (let [timer (cpp/GetTime)]
     (doseq [[body-id-boxed piece] (get-in state [:physics :pieces])]
       (let [body-id (cpp/* (cpp/unbox (:* b2BodyId) body-id-boxed))
@@ -171,7 +221,7 @@
             piece-line-thickness (if bonus?
                                    (* (+ 2.0 (cpp/sin (* timer 2.0))) piece-line-thickness)
                                    piece-line-thickness)]
-        ; TODO: Probaly not needed anymore?
+            ; TODO: Probaly not needed anymore?
         (when (cpp/b2Body_IsValid body-id)
           (let [world-pos (cpp/b2Body_GetPosition body-id)
                 screen-pos (world-to-screen-position world-pos)
@@ -246,60 +296,22 @@
                                 :y 0.1}
                                (* physics/base-capsule-size (:size-multiplier piece))
                                0.2
-                               bonus?))))))))
+                               bonus?)))))))
+  nil)
 
-(defn ceil [x]
-  (let [n (long x)]
-    (if (> x n) (inc n) n)))
+(defn render-world! [state]
+  #_(render-debug-world! state)
 
-(defn paused? [state]
-  (contains? #{:paused :game-over}
-             (:mode state)))
+  (render-playspace! state)
+  (render-claw! state)
+  (render-pieces! state)
+  nil)
 
 (defn render-ui! [state]
   (let [screen-width (cpp/GetScreenWidth)
         screen-height (cpp/GetScreenHeight)]
 
-    ; Playspace bucket: background, top border, right border.
-    (cpp/DrawRectangle (+ border-padding-x border-thickness)
-                       (- screen-height border-thickness bucket-height)
-                       bucket-width
-                       bucket-height
-                       bucket-color)
-    (cpp/DrawRectangle (+ border-padding-x border-thickness bucket-width (- bucket-border-thickness))
-                       (- screen-height border-thickness bucket-height)
-                       bucket-border-thickness
-                       bucket-height
-                       bucket-border-color-right)
-    (cpp/DrawRectangle (+ border-padding-x border-thickness)
-                       (- screen-height border-thickness bucket-height)
-                       bucket-width
-                       bucket-border-thickness
-                       bucket-border-color-top)
-
-    ; Playspace borders: right, left, top, bottom.
-    (cpp/DrawRectangle border-padding-x
-                       border-padding-y
-                       border-thickness
-                       screen-height
-                       border-color)
-    (cpp/DrawRectangle (- screen-width border-padding-x border-thickness)
-                       border-padding-y
-                       border-thickness
-                       screen-height
-                       border-color)
-    (cpp/DrawRectangle border-padding-x
-                       border-padding-y
-                       (- screen-width (* border-padding-x 2))
-                       border-thickness
-                       border-color)
-    (cpp/DrawRectangle border-padding-x
-                       (- screen-height border-padding-y border-thickness)
-                       (- screen-width (* border-padding-x 2))
-                       border-thickness
-                       border-color)
-
-    ; Playspace ticker: background, bottom border.
+    ; Ticker: background, bottom border.
     (cpp/DrawRectangle (+ border-padding-x border-thickness)
                        border-thickness
                        (- screen-width (* border-thickness 2) (* border-padding-x 2))
@@ -311,7 +323,7 @@
                        ticker-border-bottom-height
                        ticker-border-color)
 
-    ; Playspace ticker text.
+    ; Ticker text.
     ; TODO: consider subtitle (eg. controls, press x to restart, etc.)
     (when-some [ticker-text (cond
                               (= :coin-drop (:mode state)) "INSERT A COIN TO PLAY"
@@ -330,6 +342,7 @@
                       ticker-text-font-size
                       ticker-text-color)))
 
+    ; Game over screen.
     (when (= :game-over (:mode state))
       (let [; TODO: add complete game over stats
             game-over-text (format "SCORE: {}" (ceil (:score state)))
