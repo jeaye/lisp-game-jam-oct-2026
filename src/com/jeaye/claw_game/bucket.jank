@@ -38,6 +38,6 @@
       true (update :combo-count inc))))
 
 (defn on-collect [state piece]
-  (let [state (add-score state piece)]
-    ; TODO: add end game metrics (scored, bonus, max combo, etc.)
+  (let [state (add-score state piece)
+        state (update-in state [:stats :max-combo-count] max (:combo-count state))]
     state))

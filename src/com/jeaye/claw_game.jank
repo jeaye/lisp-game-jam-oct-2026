@@ -33,7 +33,7 @@
    :countdown-time-remaining 3 ; seconds
 
    ; Time remaining during :playing mode.
-   :time-remaining 60 ; seconds
+   :time-remaining 30 ; seconds
 
    ; Total accumulated score during :playing mode.
    :score 0
@@ -42,6 +42,12 @@
    :combo-time-remaining 0 ; seconds
    :combo-score-multiplier 1
    :combo-count 0
+
+   ; Stats tracking for the game over screen.
+   :stats {:pieces-scored []
+           :max-combo-count 0
+           :start-time 0
+           :end-time 0}
 
    ; :physics {:world-id ^(:* b2WorldId) _
    ;           :pieces {b2BodyId*... {:type [:enum bucket/piece-types]
@@ -69,7 +75,9 @@
   (let [state (update state :time-remaining update-timer)]
     (if (zero? (:time-remaining state))
       ; Game time complete. Game over.
-      (assoc state :mode :game-over)
+      (-> state
+          (assoc-in [:stats :end-time] (cpp/GetTime))
+          (assoc :mode :game-over))
       state)))
 
 (defn update-combo-time-remaining [state]
@@ -86,8 +94,10 @@
       ; Countdown timer complete. Start the game.
       (do
         (physics/destroy-world! (get-in state [:physics :world-id]))
-        (assoc state :physics (physics/create-world! :playing)
-                     :mode :playing))
+        (-> state
+            (assoc-in [:stats :start-time] (cpp/GetTime))
+            (assoc :physics (physics/create-world! :playing)
+                   :mode :playing)))
       state)))
 
 (defn update-paused [state]

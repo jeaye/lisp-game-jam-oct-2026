@@ -51,10 +51,10 @@
 
 (def game-over-padding 10)
 
-(def game-over-text-font-size 40)
+(def game-over-text-font-size 20)
 (def game-over-text-color text-color)
 
-(def game-over-restart-text-font-size 30)
+(def game-over-restart-text-font-size 24)
 
 (def claw-hub-color color-gray)
 (def claw-arm-color color-pink)
@@ -381,10 +381,7 @@
 
     ; Game over screen.
     (when (= :game-over (:mode state))
-      (let [; TODO: add complete game over stats
-            game-over-text (format "SCORE: {}" (ceil (:score state)))
-
-            game-over-width (int (* screen-width 0.8))
+      (let [game-over-width (int (* screen-width 0.8))
             game-over-height (int (* screen-height 0.7))
 
             game-over-x (- (/ screen-width 2)
@@ -394,7 +391,41 @@
                            (/ game-over-height 2)
                            game-over-border-thickness)
             game-over-restart-text (format "PRESS THE {} BUTTON TO RESTART" (gamepad/get-accept-button-name))
-            game-over-restart-text-width (cpp/MeasureText game-over-restart-text game-over-restart-text-font-size)]
+            game-over-restart-text-width (cpp/MeasureText game-over-restart-text game-over-restart-text-font-size)
+
+            score-text-font-size 40
+            score-text (format "SCORE: {}" (ceil (:score state)))
+            score-text-length (cpp/MeasureText score-text score-text-font-size)
+            score-text-color text-color
+            score-text-pos-x (+ game-over-x game-over-padding (/ game-over-width 2) (- (/ score-text-length 2)))
+            score-text-pos-y (+ game-over-y game-over-padding)
+
+            ; TODO: create snapshot of rendered stats on game over instead of computing each render
+            {:keys [pieces-scored max-combo-count start-time end-time]} (:stats state)
+            pieces-scored-count-by-type (reduce (fn [acc piece]
+                                                  (update acc (:type piece) (fnil inc 0)))
+                                                {}
+                                                pieces-scored)
+
+            stats-font-size 22
+            stats-text-color text-color
+            stats-text-pos-y (+ game-over-y game-over-padding 100)
+            stats-text-left-pos-x (+ game-over-x game-over-padding)
+            stats-text-right-pos-x (+ game-over-x game-over-padding (/ game-over-width 2))
+
+            stats-text-left (->> [["GAME TIME" (str (ceil (- end-time start-time)) "s")]
+                                  ["PIECES SCORED" (count pieces-scored)]
+                                  ["BONUS PIECES SCORED" (count (filter :bonus? pieces-scored))]
+                                  ["MAX COMBO" max-combo-count]]
+                                 (map #(clojure.string/join ": " %))
+                                 (clojure.string/join "\n"))
+            stats-text-right (->> [["TRIANGLES SCORED" (:triangle pieces-scored-count-by-type 0)]
+                                   ["BOXES SCORED" (:box pieces-scored-count-by-type 0)]
+                                   ["CIRCLES SCORED" (:circle pieces-scored-count-by-type 0)]
+                                   ["RECTANGLES SCORED" (:rectangle pieces-scored-count-by-type 0)]
+                                   ["CAPSULES SCORED" (:capsule pieces-scored-count-by-type 0)]]
+                                 (map #(clojure.string/join ": " %))
+                                 (clojure.string/join "\n"))]
 
         ; Game over modal + border.
         (cpp/DrawRectangle (- game-over-x game-over-border-thickness)
@@ -408,12 +439,22 @@
                            game-over-height
                            background-color)
 
-        ; Game over stats.
-        (cpp/DrawText game-over-text
-                      (+ game-over-x game-over-padding)
-                      (+ game-over-y game-over-padding)
-                      game-over-text-font-size
-                      game-over-text-color)
+        ; Game over stats: score, stats left, stats right.
+        (cpp/DrawText score-text
+                      score-text-pos-x
+                      score-text-pos-y
+                      score-text-font-size
+                      score-text-color)
+        (cpp/DrawText stats-text-left
+                      stats-text-left-pos-x
+                      stats-text-pos-y
+                      stats-font-size
+                      stats-text-color)
+        (cpp/DrawText stats-text-right
+                      stats-text-right-pos-x
+                      stats-text-pos-y
+                      stats-font-size
+                      stats-text-color)
 
         ; Game over restart text.
         (cpp/DrawText game-over-restart-text

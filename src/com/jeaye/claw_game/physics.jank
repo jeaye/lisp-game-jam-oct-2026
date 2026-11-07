@@ -788,6 +788,7 @@
                     ; Standard piece type.
                     (let [; Score the piece in the bucket.
                           state (bucket/on-collect state piece)
+                          state (update-in state [:stats :pieces-scored] conj (dissoc piece :body-id))
 
                           ; Chance to spawn a new piece to keep the bucket populated.
                           state (if (<= (rand) chance-to-spawn-piece-on-score)
