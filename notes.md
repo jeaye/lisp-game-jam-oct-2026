@@ -50,7 +50,7 @@
   * Bucket
   * Playspace border
 * [bryan] Audio
-  * Background music
+  * [done] Background music
   * Claw scraping
   * Claw open/closing
   * Piece interactions
