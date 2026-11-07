@@ -1,11 +1,11 @@
 (ns com.jeaye.claw-game.bucket)
 
 ; Score configuration.
-(def score-base 100) ; base score per piece
-(def bonus-score-multiplier 5) ; score multiplier for bonus piece
+(def score-base 10) ; base score per piece
+(def bonus-score-multiplier 3) ; score multiplier for bonus piece
 (def bonus-time-added 3) ; seconds; time added per bonus piece scored
 (def combo-time 1) ; seconds; total time to count as an active combo, reset on each piece score
-(def combo-score-multiplier-added 0.5) ; combo score multiplier added per piece scored during an active combo
+(def combo-score-multiplier-added 0.1) ; combo score multiplier added per piece scored during an active combo
 
 (defn add-score [state piece]
   (let [score score-base ; base piece score

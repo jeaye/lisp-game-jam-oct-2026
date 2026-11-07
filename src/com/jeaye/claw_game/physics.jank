@@ -59,6 +59,7 @@
 (def claw-carriage-density 5.0)
 (def claw-carriage-mass 2.0)
 (def claw-carriage-friction 0.3)
+(def claw-carriage-max-torque 6.0)
 
 (def claw-hub-width 0.6)
 (def claw-hub-height 0.2)
@@ -546,7 +547,7 @@
             (cpp/= (.-upperAngle joint-def) (degrees-to-radians 45.0))
 
             (cpp/= (.-enableMotor joint-def) true)
-            (cpp/= (.-maxMotorTorque joint-def) 3.0)
+            (cpp/= (.-maxMotorTorque joint-def) claw-carriage-max-torque)
             (cpp/= (.-motorSpeed joint-def) 0.0)
 
             (cpp/= (.-enableSpring joint-def) false))
