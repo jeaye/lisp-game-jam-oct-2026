@@ -710,16 +710,19 @@
     (cpp/b2RevoluteJoint_SetMotorSpeed (cpp/* joint-id) speed)))
 
 (defn drive-claw-carriage! [^(:* b2BodyId) carriage-id
-                            axes]
+                            axes
+                            mode]
   (let [pos (cpp/b2Body_GetPosition (cpp/* carriage-id))
         ; Lock the carriage within the playspace, but also prevent it from entering
         ; the bucket area.
         min-x (if (< (.-y pos) (+ (/ world-height -2.0) bucket-wall-height))
                 (- (- (/ world-width 2) wall-width bucket-width))
                 (- (- (/ world-width 2) (/ wall-width 2))))
-        min-y (if (< (.-x pos) (- (- (/ world-width 2) wall-width bucket-width)))
-                (+ (/ world-height -2.0) bucket-wall-height)
-                (* world-height -0.35))
+        min-y (if (= :coin-drop mode)
+                (* world-height -0.1)
+                (if (< (.-x pos) (- (- (/ world-width 2) wall-width bucket-width)))
+                  (+ (/ world-height -2.0) bucket-wall-height)
+                  (* world-height -0.35)))
         axes (cond
                (and (<= (- (/ world-width 2) (/ wall-width 2)) (.-x pos)) (< 0.0 (:x axes)))
                (assoc axes :x 0.0)
@@ -766,7 +769,7 @@
     (drive-claw-tip! left-joint-id :left left-claw-axis)
     (drive-claw-tip! right-joint-id :right right-claw-axis)
     (drive-claw-rotation! central-hub-joint-id rotation-axis)
-    (drive-claw-carriage! carriage-id pos-axes)))
+    (drive-claw-carriage! carriage-id pos-axes (:mode state))))
 
 (defn update-pieces! [state]
   (let [world-id-box (get-in state [:physics :world-id])

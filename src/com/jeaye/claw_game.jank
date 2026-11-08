@@ -170,8 +170,8 @@
 
 (defn -main [& args]
   (cpp/SetConfigFlags (cpp/| cpp/FLAG_MSAA_4X_HINT cpp/FLAG_VSYNC_HINT))
-  #_(cpp/InitWindow 1920 1080 "janky claw") ; 16:9
-  (cpp/InitWindow 960 540 "shape.wav")
+  #_(cpp/InitWindow 1920 1080 "shapewave") ; 16:9
+  (cpp/InitWindow 960 540 "shapewave")
   (cpp/SetTargetFPS 60)
   (cpp/rlEnableSmoothLines)
 
