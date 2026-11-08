@@ -1,5 +1,6 @@
 (ns com.jeaye.claw-game
-  (:include "raylib.h"
+  (:include "filesystem"
+            "raylib.h"
             "rlgl.h"
             "raylib-trait.hpp"
             "box2d/box2d.h"
@@ -168,6 +169,16 @@
     (catch :default _
       (log-error! "render exception"))))
 
+(def resource-paths ["./resources/"
+                     (str (cpp/getenv "APPDIR") "/resources/")])
+
+(defn resolve-resource [path]
+  (some (fn [resource-path]
+          (let [full-path (str resource-path path)]
+            (when (std.filesystem.exists (cpp/cast std.string full-path))
+              full-path)))
+        resource-paths))
+
 (defn -main [& args]
   (cpp/SetConfigFlags (cpp/| cpp/FLAG_MSAA_4X_HINT cpp/FLAG_VSYNC_HINT))
   #_(cpp/InitWindow 1920 1080 "shapewave") ; 16:9
@@ -179,7 +190,7 @@
 
   ; This is stored separately from the game state, since we end up resetting
   ; that all the time and we want to keep the music consistent.
-  (let [music (cpp/LoadMusicStream "resources/arcade-of-shadows.ogg")]
+  (let [music (cpp/LoadMusicStream (resolve-resource "arcade-of-shadows.ogg"))]
     (cpp/SetMusicVolume music 0.1)
     (cpp/PlayMusicStream music)
 
