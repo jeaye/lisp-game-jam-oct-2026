@@ -90,6 +90,7 @@
 (def token-radius (* base-circle-size token-size))
 
 (def coin-slot-width (* token-radius 2.0 1.25))
+(def coin-slot-slope-width coin-slot-width)
 
 (def coin-slot-sensor-width coin-slot-width)
 (def coin-slot-sensor-height bucket-sensor-height)
@@ -97,16 +98,24 @@
                            :y (+ (/ world-height -2.0)
                                  (/ coin-slot-sensor-height 2.0))})
 
-(def coin-slot-wall-width (/ (- world-width coin-slot-width) 2.0))
+(def coin-slot-wall-width (- (/ world-width 2.0)
+                             (/ coin-slot-width 2.0)
+                             coin-slot-slope-width))
 (def coin-slot-wall-height bucket-wall-height)
-(def coin-slot-wall-left-pos {:x (+ (/ world-width -2)
-                                    (/ coin-slot-wall-width 2))
-                              :y (+ (/ world-height -2)
-                                    (/ coin-slot-wall-height 2))})
-(def coin-slot-wall-right-pos {:x (- (/ world-width 2)
-                                     (/ coin-slot-wall-width 2))
-                               :y (+ (/ world-height -2)
-                                     (/ coin-slot-wall-height 2))})
+(def coin-slot-wall-left-pos {:x (+ (/ world-width -2.0)
+                                    (/ coin-slot-wall-width 2.0))
+                              :y (+ (/ world-height -2.0)
+                                    (/ coin-slot-wall-height 2.0))})
+(def coin-slot-wall-right-pos {:x (- (/ world-width 2.0)
+                                     (/ coin-slot-wall-width 2.0))
+                               :y (+ (/ world-height -2.0)
+                                     (/ coin-slot-wall-height 2.0))})
+(def coin-slot-slope-left-pos {:x (- coin-slot-slope-width)
+                               :y (+ (/ world-height -2.0)
+                                     (/ coin-slot-wall-height 2.0))})
+(def coin-slot-slope-right-pos {:x coin-slot-slope-width
+                                :y (+ (/ world-height -2.0)
+                                      (/ coin-slot-wall-height 2.0))})
 
 ; This controls the number of sub-steps that box2d does per tick.
 ; More sub-steps will result in more precision.
@@ -175,7 +184,7 @@
         _ (cpp/= (.-enableSensorEvents shape-def) true)]
     (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box)))
 
-  ; Left wall.
+  ; Left: wall, slope.
   (let [body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-position body-def) (cpp/b2Vec2 (:x coin-slot-wall-left-pos)
                                                    (:y coin-slot-wall-left-pos)))
@@ -184,8 +193,22 @@
                            (/ coin-slot-wall-height 2.0))
         shape-def (cpp/b2DefaultShapeDef)]
     (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box)))
+  (let [shape-def (cpp/b2DefaultShapeDef)
+        triangle-points (#cpp (:array b2Vec2 3))
+        _ (cpp/= (cpp/aget triangle-points 0) (cpp/b2Vec2 (/ coin-slot-slope-width -2.0) (/ coin-slot-wall-height 2.0)))
+        _ (cpp/= (cpp/aget triangle-points 1) (cpp/b2Vec2 (/ coin-slot-slope-width -2.0) (/ coin-slot-wall-height -2.0)))
+        _ (cpp/= (cpp/aget triangle-points 2) (cpp/b2Vec2 (/ coin-slot-slope-width 2.0) (/ coin-slot-wall-height -2.0)))
 
-  ; Right wall.
+        triangle-hull (cpp/b2ComputeHull triangle-points 3)
+        triangle (cpp/b2MakePolygon (cpp/& triangle-hull) 0.0)
+        body-def (cpp/b2DefaultBodyDef)
+        _ (cpp/= (.-position body-def)
+                 (cpp/b2Vec2 (:x coin-slot-slope-left-pos)
+                             (:y coin-slot-slope-left-pos)))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
+    (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& triangle)))
+
+  ; Right: wall, slope.
   (let [body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-position body-def) (cpp/b2Vec2 (:x coin-slot-wall-right-pos)
                                                    (:y coin-slot-wall-right-pos)))
@@ -194,28 +217,21 @@
                            (/ coin-slot-wall-height 2.0))
         shape-def (cpp/b2DefaultShapeDef)]
     (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& box)))
-
-  ; TODO: add wall slope
-  #_(let [shape-def (cpp/b2DefaultShapeDef)
+  (let [shape-def (cpp/b2DefaultShapeDef)
         triangle-points (#cpp (:array b2Vec2 3))
-        size 20
-        slope 0.04 ; less = steeper
-        ; TODO: We shouldn't do this for every triangle we create.
-        ; Do it once and then put it into a var or something.
-        _ (cpp/= (cpp/aget triangle-points 0) (cpp/b2Vec2 (* -0.1 size) (* 0.115470 size)))
-        _ (cpp/= (cpp/aget triangle-points 1) (cpp/b2Vec2 (* -0.1 size) (* -0.057735 size)))
-        _ (cpp/= (cpp/aget triangle-points 2) (cpp/b2Vec2 (* (+ -0.1 slope) size) (* -0.057735 size)))
+        _ (cpp/= (cpp/aget triangle-points 0) (cpp/b2Vec2 (/ coin-slot-slope-width 2.0) (/ coin-slot-wall-height 2.0)))
+        _ (cpp/= (cpp/aget triangle-points 1) (cpp/b2Vec2 (/ coin-slot-slope-width 2.0) (/ coin-slot-wall-height -2.0)))
+        _ (cpp/= (cpp/aget triangle-points 2) (cpp/b2Vec2 (/ coin-slot-slope-width -2.0) (/ coin-slot-wall-height -2.0)))
 
         triangle-hull (cpp/b2ComputeHull triangle-points 3)
         triangle (cpp/b2MakePolygon (cpp/& triangle-hull) 0.0)
         body-def (cpp/b2DefaultBodyDef)
         _ (cpp/= (.-position body-def)
-                 (cpp/b2Vec2 0.0
-                             0.0))
-        ;- (cpp/= (.-rotation body-def) (cpp/b2MakeRot (degrees-to-radians 30)))
-        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))
-        _ (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& triangle))
-        ])
+                 (cpp/b2Vec2 (:x coin-slot-slope-right-pos)
+                             (:y coin-slot-slope-right-pos)))
+        body-id (cpp/b2CreateBody (cpp/* world-id) (cpp/& body-def))]
+    (cpp/b2CreatePolygonShape body-id (cpp/& shape-def) (cpp/& triangle)))
+
   nil)
 
 (defn create-playspace! [^(:* b2WorldId) world-id]

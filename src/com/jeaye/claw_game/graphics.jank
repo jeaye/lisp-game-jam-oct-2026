@@ -212,15 +212,32 @@
     (case (:mode state)
       (:coin-drop :countdown)
       (do
-        ; Walls: left, right.
+        ; Left: walls, slope.
         (render-world-rect! {:width physics/coin-slot-wall-width
                              :height physics/coin-slot-wall-height
                              :position physics/coin-slot-wall-left-pos
                              :color border-color})
+        (let [{:keys [x y]} (world-to-screen-position physics/coin-slot-slope-left-pos)
+              w (ceil (world-to-screen-size physics/coin-slot-slope-width))
+              h (ceil (world-to-screen-size physics/coin-slot-wall-height))
+              v1 (cpp/Vector2 (- x (/ w 2)) (- y (/ h 2)))
+              v2 (cpp/Vector2 (- x (/ w 2)) (+ y (/ h 2)))
+              v3 (cpp/Vector2 (+ x (/ w 2)) (+ y (/ h 2)))]
+          (cpp/DrawTriangle v1 v2 v3 border-color))
+
+        ; Right: walls, slope.
         (render-world-rect! {:width physics/coin-slot-wall-width
                              :height physics/coin-slot-wall-height
                              :position physics/coin-slot-wall-right-pos
                              :color border-color})
+        (let [{:keys [x y]} (world-to-screen-position physics/coin-slot-slope-right-pos)
+              w (ceil (world-to-screen-size physics/coin-slot-slope-width))
+              w (+ w 2) ; TODO: adjust for rendering artifact, not sure why it's needed
+              h (ceil (world-to-screen-size physics/coin-slot-wall-height))
+              v1 (cpp/Vector2 (+ x (/ w 2)) (- y (/ h 2)))
+              v2 (cpp/Vector2 (- x (/ w 2)) (+ y (/ h 2)))
+              v3 (cpp/Vector2 (+ x (/ w 2)) (+ y (/ h 2)))]
+          (cpp/DrawTriangle v1 v2 v3 border-color))
 
         ; Sensor.
         (render-world-rect! {:width physics/coin-slot-width
