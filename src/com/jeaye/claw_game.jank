@@ -44,10 +44,12 @@
    :combo-count 0
 
    ; Stats tracking for the game over screen.
+
+   ; Stats accumulators. On game over, these stats are used to generate
+   ; a derived snapshot (:game-over-stats) to show on the game over modal.
    :stats {:pieces-scored []
            :max-combo-count 0
-           :start-time 0
-           :end-time 0}
+           :start-time 0}
 
    ; :physics {:world-id ^(:* b2WorldId) _
    ;           :pieces {b2BodyId*... {:type [:enum bucket/piece-types]
@@ -75,9 +77,18 @@
   (let [state (update state :time-remaining update-timer)]
     (if (zero? (:time-remaining state))
       ; Game time complete. Game over.
-      (-> state
-          (assoc-in [:stats :end-time] (cpp/GetTime))
-          (assoc :mode :game-over))
+      (let [; Derive the game over stats once when the game is done.
+            {:keys [pieces-scored max-combo-count start-time]} (:stats state)
+            game-over-stats {:game-time (graphics/ceil (- (cpp/GetTime) start-time))
+                             :pieces-scored (count pieces-scored)
+                             :bonus-pieces-scored (count (filter :bonus? pieces-scored))
+                             :max-combo-count max-combo-count
+                             :pieces-scored-count-by-type (reduce (fn [acc piece]
+                                                                    (update acc (:type piece) (fnil inc 0)))
+                                                            {}
+                                                            pieces-scored)}]
+          (assoc state :game-over-stats game-over-stats
+                       :mode :game-over))
       state)))
 
 (defn update-combo-time-remaining [state]

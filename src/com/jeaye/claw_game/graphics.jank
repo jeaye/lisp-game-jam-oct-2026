@@ -391,7 +391,6 @@
                        ticker-border-color)
 
     ; Ticker text.
-    ; TODO: consider subtitle (eg. controls, press x to restart, etc.)
     (when-some [ticker-text (cond
                               (= :coin-drop (:mode state)) "INSERT A COIN TO START"
                               (= :countdown (:mode state)) (str (ceil (:countdown-time-remaining state)))
@@ -430,23 +429,17 @@
             score-text-pos-x (+ game-over-x game-over-padding (/ game-over-width 2) (- (/ score-text-length 2)))
             score-text-pos-y (+ game-over-y game-over-padding)
 
-            ; TODO: create snapshot of rendered stats on game over instead of computing each render
-            {:keys [pieces-scored max-combo-count start-time end-time]} (:stats state)
-            pieces-scored-count-by-type (reduce (fn [acc piece]
-                                                  (update acc (:type piece) (fnil inc 0)))
-                                                {}
-                                                pieces-scored)
-
             stats-font-size 22
             stats-text-color text-color
             stats-text-pos-y (+ game-over-y game-over-padding 100)
             stats-text-left-pos-x (+ game-over-x game-over-padding)
             stats-text-right-pos-x (+ game-over-x game-over-padding (/ game-over-width 2))
 
-            stats-text-left (->> [["GAME TIME" (str (ceil (- end-time start-time)) "s")]
-                                  ["PIECES SCORED" (count pieces-scored)]
-                                  ["BONUS PIECES SCORED" (count (filter :bonus? pieces-scored))]
-                                  ["MAX COMBO" max-combo-count]]
+            {:keys [pieces-scored-count-by-type] :as game-over-stats} (:game-over-stats state)
+            stats-text-left (->> [["GAME TIME" (str (:game-time game-over-stats) "s")]
+                                  ["PIECES SCORED" (:pieces-scored game-over-stats)]
+                                  ["BONUS PIECES SCORED" (:bonus-pieces-scored game-over-stats)]
+                                  ["MAX COMBO" (:max-combo-count game-over-stats)]]
                                  (map #(clojure.string/join ": " %))
                                  (clojure.string/join "\n"))
             stats-text-right (->> [["TRIANGLES SCORED" (:triangle pieces-scored-count-by-type 0)]
