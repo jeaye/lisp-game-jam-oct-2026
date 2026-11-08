@@ -446,7 +446,7 @@
             score-text-pos-x (+ game-over-x game-over-padding (/ game-over-width 2) (- (/ score-text-length 2)))
             score-text-pos-y (+ game-over-y game-over-padding)
 
-            stats-font-size 22
+            stats-font-size 25
             stats-text-color text-color
             stats-text-pos-y (+ game-over-y game-over-padding 100)
             stats-text-left-pos-x (+ game-over-x game-over-padding)
