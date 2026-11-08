@@ -8,7 +8,8 @@
   :plugins [[org.jank-lang/lein-jank "2026.10-3"]]
   :middleware [leiningen.jank/middleware]
   :main com.jeaye.claw-game
-  :jank {:include-dirs ["include"]}
+  :jank {:include-dirs ["include"]
+         :name "shapewave"}
   :profiles {:base {:jank {:target-dir "target/debug"
                            :optimization-level 0
                            :eager? true
