@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+lein with-profile +release compile
+
+cd target
+
+mkdir -p shapewave.app
+
+cp -r ../resources/app/Contents shapewave.app
+cp release/shapewave shapewave.app/Contents/MacOS
+
+mkdir -p shapewave.app/Contents/Resources
+cp -r ../resources/* shapewave.app/Contents/Resources
+
+BIN='shapewave.app/Contents/MacOS/shapewave'
+
+RAYLIB_LIB="$(pwd)/$(ls -d release/_cache/raylib-sys-*-out-*/lib | tail -1)"
+
+# Hack to resolve libraylib.600.dylib in CI
+ln -sf "$RAYLIB_LIB/libraylib.600.dylib" libraylib.600.dylib
+
+dylibbundler -od -b \
+             -x "$BIN" \
+             -d shapewave.app/Contents/Frameworks/ \
+             -p @executable_path/../Frameworks/ \
+             -s "$RAYLIB_LIB"
+
+# Fixes: dyld[57925]: duplicate LC_RPATH
+otool -l "$BIN" \
+  | grep ' path ' \
+  | sed 's/^ *path //' \
+  | sed 's/ (offset [0-9]*)//' \
+  | xargs -I{} install_name_tool -delete_rpath "{}" "$BIN"
+
+codesign --force --deep -s - shapewave.app
+
+hdiutil create -volname shapewave -srcfolder shapewave.app -ov -format UDZO shapewave.dmg
