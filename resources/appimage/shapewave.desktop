@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=shapewave
+Exec=shapewave
+Icon=icon
+Categories=Game;
+Terminal=false
