@@ -4,7 +4,6 @@
             "rlgl.h"
             "raylib-trait.hpp"
             "box2d/box2d.h"
-            "box2d_draw.h"
             "box2d-trait.hpp")
   (:require [clojure.string]
             [com.jeaye.claw-game.physics :as physics]
@@ -188,7 +187,8 @@
 
   (cpp/InitAudioDevice)
 
-  (when (= cpp/jtl.current_platform cpp/jtl.platform.macos_like)
+  ; Enable for macOS DMG builds.
+  #_(when (= cpp/jtl.current_platform cpp/jtl.platform.macos_like)
     (cpp/ChangeDirectory (cpp/GetApplicationDirectory))
     (cpp/ChangeDirectory "../Resources"))
 

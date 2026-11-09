@@ -3,7 +3,6 @@
             "raylib-trait.hpp"
             "raylib-extension.hpp"
             "box2d/box2d.h"
-            "box2d_draw.h"
             "box2d-trait.hpp")
   (:require [com.jeaye.claw-game.physics :as physics]
             [com.jeaye.claw-game.gamepad :as gamepad]))
@@ -90,12 +89,6 @@
   (let [screen-width (cpp/GetScreenWidth)
         world-percent (/ world-size (* physics/world-width physics/world-to-screen-modifier))]
     (* world-percent screen-width)))
-
-(defn render-debug-world! [state]
-  (let [debug (cpp/b2CreateDebugDraw (/ (cpp/GetScreenWidth)
-                                        (* physics/world-width physics/world-to-screen-modifier)))
-        world-id (cpp/* (cpp/unbox (:* b2WorldId) (get-in state [:physics :world-id])))]
-    (cpp/b2World_Draw world-id (cpp/& debug))))
 
 (defn render-capsule! [^(:* b2BodyId) body-id screen-pos degrees center-a center-b radius width
                        bonus?]
@@ -384,8 +377,6 @@
   nil)
 
 (defn render-world! [state]
-  #_(render-debug-world! state)
-
   (render-claw! state)
   (render-pieces! state)
   (render-playspace! state)
