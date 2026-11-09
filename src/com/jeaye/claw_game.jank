@@ -175,7 +175,7 @@
 (defn resolve-resource [path]
   (some (fn [resource-path]
           (let [full-path (str resource-path path)]
-            (when (std.filesystem.exists (cpp/cast std.string full-path))
+            (when (cpp/std.filesystem.exists (cpp/cast std.string full-path))
               full-path)))
         resource-paths))
 
