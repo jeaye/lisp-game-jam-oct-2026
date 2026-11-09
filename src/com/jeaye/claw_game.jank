@@ -178,8 +178,8 @@
   (cpp/InitAudioDevice)
 
   ; Enable these for MacOS.
-  (cpp/ChangeDirectory (cpp/GetApplicationDirectory))
-  (cpp/ChangeDirectory "../Resources")
+  ;(cpp/ChangeDirectory (cpp/GetApplicationDirectory))
+  ;(cpp/ChangeDirectory "../Resources")
 
   ; This is stored separately from the game state, since we end up resetting
   ; that all the time and we want to keep the music consistent.
