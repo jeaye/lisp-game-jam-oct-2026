@@ -11,8 +11,8 @@ mkdir -p shapewave.app
 cp -r ../resources/app/Contents shapewave.app
 cp release/shapewave shapewave.app/Contents/MacOS
 
-mkdir -p shapewave.app/Contents/Resources
-cp -r ../resources/* shapewave.app/Contents/Resources
+mkdir -p shapewave.app/Contents/Resources/resources
+cp ../resources/arcade-of-shadows.ogg shapewave.app/Contents/Resources/resources
 
 BIN='shapewave.app/Contents/MacOS/shapewave'
 
